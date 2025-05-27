@@ -1,3 +1,4 @@
+from dask.array import concatenate
 from overrides import overrides
 from basic_prompt_designs.Pattern import Pattern
 from basic_prompt_designs.Global_Function import Global_Function
@@ -39,28 +40,25 @@ class Classification(Pattern):
         You are a reasoning classifier assistant. Consider multiple possibilities, classify label for each path (negative, positive, neutral)
          and choose the most reasonable one.
         Q: {text}
-        Option 1: Analyze based on emotional keywords.
-        Option 2: Consider the context and tone.
-        Option 3: Check for contrast or negation.
-        Evaluate each option and choose the best.
-        Final Answer: ?
+        Think in multiple directions and explain the logic behind each possible sentiment.
+        The sentiment is (negative, positive, neutral): ?
         """
     def select_best_path(self, thoughts, text, do_print):
         prompt = f"""
-        You are an expert reasoner. Given the following options for reasoning, choose the most logical and correct one.
+        You are an expert sentiment reasoner. Based on the reasoning options below, choose the most correct label (positive, negative, or neutral) and explain your choice.
         Context: {text}
-        Options:
+        Reasoning options:
         {chr(10).join([
             f"{i+1}. {t}" for i, t in enumerate(thoughts)
         ])}
-        Answer: The best possible label is (please write clearly: positive, negative or neutral)?
+        Evaluate each option. The most possible sentiment is (negative, positive, neutral)
         """
         if do_print:
             print('Prompt', prompt)
         input = self.tokenizer(prompt, return_tensors='pt').to('cuda')
         output = self.model.generate(
             **input,
-            max_length = 10,
+            max_length = 200,
             do_sample=False
         )
         return self.tokenizer.decode(output[0], skip_special_tokens=True).strip()
@@ -68,7 +66,6 @@ class Classification(Pattern):
     def recursive_expand_tree(self, prompt, depth, breadth, do_print=False):
         if depth == 0:
             return [prompt]
-
         expanded = self.functions.expand_thoughts(prompt, n=breadth)
         if do_print:
             print(f"[Depth {depth}] Expand prompt:\n{prompt}")
@@ -90,27 +87,21 @@ class Classification(Pattern):
     @overrides()
     def few_shots_direct(self, text):
         return f"""
-        You're a sentiment classifier assistant. Classify the sentiment of this sentence into 3 labels: negative, positive and neutral,
-        Recorrect each time you classifying with other LLM model
-          Example:Although I had high hopes, this product was a huge disappointment.
-          Let's think step by step.
-          1. The person had high hopes.
-          2. But the product was a disappointment.
-          3. The overall sentiment is negative.
-          Q: {text} A: The sentiment is ?
+        You are a sentiment classifier assistant. Classify each sentence as positive, neutral, or negative.
+        Q: hi, A: positive
+        Q: Wrong answer B:Negative
+        Q: How can I print mouse coordinates in Rust GTK on a drawing area when clicked?, A: neutral
+        Q: {text}, A:
         """
 
     @overrides()
     def few_shots_CoT(self, text):
         return f"""
-        You're a sentiment classifier assistant. Classify the sentiment of this sentence into 3 labels: negative, positive and neutral, 
-        Recorrect each time you classifying with other LLM model
-          Example:Although I had high hopes, this product was a huge disappointment.
-          Let's think step by step.
-          1. The person had high hopes.
-          2. But the product was a disappointment.
-          3. The overall sentiment is negative.
-          Q: {text} A: Let's think step by step. The sentiment is ?
+        You are a sentiment classifier assistant. Classify each sentence as positive, neutral, or negative.
+        Q: hi, A: positive
+        Q: Wrong answer B:Negative
+        Q: How can I print mouse coordinates in Rust GTK on a drawing area when clicked?, A: neutral
+        Q: {text}, A:Let's think step by step. The sentiment is ?
         """
 
     @overrides()
@@ -132,23 +123,42 @@ class Classification(Pattern):
         Option 1: Slow pacing → possibly negative.
         Option 2: Fantastic ending → possibly positive.
         Option 3: Mixed emotions → possibly neutral.
-        Best reasoning: Ending leaves stronger impression → Positive.
+        Best reasoning: Ending leaves stronger impression → Positive. 
+        Q: hi, A: positive
+        Q: Wrong answer B:Negative
+        Q: How can I print mouse coordinates in Rust GTK on a drawing area when clicked?, A: neutral
+        
         Q: {text}
-        Option 1: ...
-        Option 2: ...
-        Option 3: ...
+        Option 1: Consider emotional words.
+        Option 2: Analyze tone and syntax.
+        Option 3: Look for negation or contrast.
         Best reasoning: ...
         Final Answer: ?
         """
     def few_shots_ToT_expanded(self, text, depth=2, breadth=3, do_print=False):
             root_prompt = (f"""
                         You're a sentiment classifier assistant. Use multiple lines of reasoning before answering.
-                        Example: "This movie was slow, but the ending was fantastic."
+                        Option 1: Consider emotional words.
+                        Option 2: Analyze tone and syntax.
+                        Option 3: Look for negation or contrast.
+                        Example: "This movie was slow, but the ending was fantastic." \n
                         Option 1: Slow pacing → possibly negative.
                         Option 2: Fantastic ending → possibly positive.
                         Option 3: Mixed emotions → possibly neutral.
                         Best reasoning: Ending leaves stronger impression → Positive.
-                        Analyze sentiment of and explain why clearly: {text}""")
+                        Example: "The interface is a bit clunky, but overall the app works well."\n
+                        Option 1: Clunky interface → possibly negative.  
+                        Option 2: Overall functionality is good → possibly positive.  
+                        Option 3: Mixed usability and performance → possibly neutral.  
+                        Best reasoning: Despite minor flaws, the overall experience is good → Positive.
+                        Example: "I expected more from the product, but I guess it’s okay."\n
+                        Option 1: Expression of disappointment → possibly negative.  
+                        Option 2: "It’s okay" suggests acceptance → possibly neutral.  
+                        Option 3: Expectations weren’t met, but there's no strong emotion → possibly neutral.  
+                        Best reasoning: Slight disappointment balanced by acceptance → Neutral.
+                        Based on these examples, choose different options, reason and give the most possible sentiment \n
+                        Q: {text} 
+                        Best reasoning:.... -> """)
             tree = self.recursive_expand_tree(root_prompt, depth=depth, breadth=breadth, do_print=do_print)
             best_path = self.select_best_path(tree, text, do_print)
             return best_path
@@ -179,5 +189,5 @@ class Classification(Pattern):
             if do_print:
                 print(prompt)
             input = self.tokenizer(prompt, return_tensors='pt').to('cuda')
-            output = self.functions.generate_output(type=None, input=input, max_len=100)
+            output = self.functions.generate_output(type=None, input=input, max_len=300)
             return self.tokenizer.decode(output[0], skip_special_tokens=True)

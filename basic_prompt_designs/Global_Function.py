@@ -92,7 +92,7 @@ class Global_Function:
         top = scores.argsort()[::-1][:k]
         return [self.task_lib[i] for i in top]
 
-    def expand_thoughts(self, prompt, n=3, max_len=50):
+    def expand_thoughts(self, prompt, n=3, max_len=100):
         input = self.tokenizer(prompt, return_tensors='pt').to('cuda')
         outputs = self.model.generate(
             **input,

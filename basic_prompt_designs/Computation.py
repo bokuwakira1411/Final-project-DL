@@ -1,5 +1,5 @@
 from overrides import overrides
-import Pattern
+from basic_prompt_designs.Pattern import Pattern
 from basic_prompt_designs.Global_Function import Global_Function
 from sentence_transformers import SentenceTransformer, util
 
@@ -159,7 +159,8 @@ class Computation(Pattern):
     @overrides()
     def few_shots_ToT(self, text):
         return f"""
-        You are a math assistant. Whenever you see a math expression, call the function CALC(). Use a tree-of-thought approach to break down complex problems by exploring different solution paths, then converge on the correct answer.
+        You are a math assistant.\n
+         Use a tree-of-thought approach to break down complex problems by exploring different solution paths, then converge on the correct answer.
 
         Q: Natalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell altogether in April and May?
         A:
@@ -210,12 +211,17 @@ class Computation(Pattern):
         examples = self.functions.find_top_k_tasks(text, 3)
         return self.build_prompt(examples, text)
 
-    def run(self, text, do_print=False, type='Direct zero-shot', type_output=None, num_samples=5, max_len=50):
+
+    def run(self, text, do_print=False, type='Direct zero-shot', num_samples=5, max_len=50, depth=2, breadth=3):
         prompt = None
         if type == 'Zero-shot CoT + Self-consistency':
             return self.zero_shot_CoT_SC(text, num_samples, max_len, do_print)
         elif type == 'Few-shots CoT + Self-consistency':
             return self.few_shots_CoT_SC(text, num_samples, max_len, do_print)
+        elif type == 'Zero-shot ToT expanded':
+            return self.zero_shot_ToT_expanded(text, depth, breadth, do_print)
+        elif type == 'Few-shots ToT expanded':
+            return self.few_shots_ToT_expanded(text, depth, breadth, do_print)
         else:
             if type == 'Direct zero-shot':
                 prompt = self.zero_shot_direct(text)
@@ -229,11 +235,8 @@ class Computation(Pattern):
                 prompt = self.few_shots_CoT(text)
             elif type == 'Few-shots ToT':
                 prompt = self.few_shots_ToT(text)
-            elif type == 'Few-shots CoT ART':
-                prompt = self.few_shots_CoT_ART(text)
-
-            input_ids = self.tokenizer(prompt, return_tensors='pt').to('cuda')
-            output = self.functions.generate_output(type=type_output, input=input_ids, max_len=100)
             if do_print:
                 print(prompt)
+            input = self.tokenizer(prompt, return_tensors='pt').to('cuda')
+            output = self.functions.generate_output(type='generation', input=input, max_len=300)
             return self.tokenizer.decode(output[0], skip_special_tokens=True)

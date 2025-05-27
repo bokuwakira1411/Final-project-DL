@@ -1,5 +1,5 @@
 from overrides import overrides
-import Pattern
+from basic_prompt_designs.Pattern import Pattern
 from basic_prompt_designs.Global_Function import Global_Function
 from sentence_transformers import SentenceTransformer, util
 
@@ -14,14 +14,14 @@ class Reasoning(Pattern):
     def zero_shot_direct(self, text):
         return f"""
         You are a reasoning assistant. Break down the problem by exploring multiple lines of reasoning. 
-        Q: {text}. A:You need to answer follow this form: The answer is ?
+        Q: {text}. A:Answer the question
         """
 
     @overrides()
     def zero_shot_CoT(self, text):
         return f"""
                 You are a reasoning assistant. Break down the problem by exploring multiple lines of reasoning. 
-                Q: {text}. A: Let's think step by step. You need to answer follow this form: The answer is ?
+                Q: {text}. A: Let's think step by step. Answer the question
                 """
     @overrides()
     def zero_shot_CoT_SC(self, text, num_samples=5, max_len=50, do_print=False):
@@ -46,7 +46,7 @@ class Reasoning(Pattern):
 
         After exploring all thoughts, decide on the most reasonable final answer.
 
-        Final Answer: ?
+        A:Answer the question
         """
 
     @overrides()
@@ -64,7 +64,7 @@ class Reasoning(Pattern):
     A: The student probably performed well on the exam.
     
     Q: {text}
-    A: The answer is ?
+    A:Answer the question
     """
 
     @overrides()
@@ -88,7 +88,7 @@ class Reasoning(Pattern):
         Thought 1:
         Thought 2:
         Thought 3:
-        Final Answer:"""
+        A:Answer the question"""
 
     def select_best_path(self, thoughts, text, do_print):
         prompt = f"""
@@ -101,7 +101,7 @@ class Reasoning(Pattern):
                 {chr(10).join([f"{i + 1}. {t}" for i, t in enumerate(thoughts)])}
             
                 Please reply with the number of the best reasoning option and explain briefly why it is the best.
-                Answer:
+                A:Answer the question
                 """
         if do_print:
             print('Prompt:\n', prompt)
@@ -156,14 +156,16 @@ class Reasoning(Pattern):
             Thought 1:
             Thought 2:
             Thought 3:
-            Final Answer:
+            A:Answer the question
             """
         if do_print:
             print('Root_prompt', root_prompt)
         tree = self.recursive_expand_tree(root_prompt, depth=depth, breadth=breadth, do_print=do_print)
         best_path = self.select_best_path(tree, text, do_print)
         return best_path
-
+    @overrides()
+    def few_shots_CoT(self, text):
+        pass
     @overrides()
     def few_shots_CoT_SC(self, text, num_samples=5, max_len=50, do_print=False):
         prompt = self.few_shots_CoT(text)
@@ -174,7 +176,6 @@ class Reasoning(Pattern):
             print('Self-consistent answer: ', best_answer)
             print('All votes: ', all_votes)
         return best_answer, all_votes
-
     def few_shots_CoT_ART(self, text):
         pass
 
@@ -204,5 +205,5 @@ class Reasoning(Pattern):
             if do_print:
                 print(prompt)
             input = self.tokenizer(prompt, return_tensors='pt').to('cuda')
-            output = self.functions.generate_output(type=None, input=input, max_len=100)
+            output = self.functions.generate_output(type=None, input=input, max_len=300)
             return self.tokenizer.decode(output[0], skip_special_tokens=True)
