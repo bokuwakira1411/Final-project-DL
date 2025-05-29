@@ -1,8 +1,8 @@
-from dask.array import concatenate
+
 from overrides import overrides
 from basic_prompt_designs.Pattern import Pattern
 from basic_prompt_designs.Global_Function import Global_Function
-
+import streamlit as st
 
 class Classification(Pattern):
     def __init__(self, tokenizer, model):
@@ -12,17 +12,14 @@ class Classification(Pattern):
 
     @overrides()
     def zero_shot_direct(self, text):
-        return f"""
-        You are a classifier assistant. Classify the sentiment of this sentence into 3 labels: negative, positive and neutral
-        Q: {text}. A: The answer is ?
-        """
+        return f"Classify the sentiment of this sentence as positive, negative, or neutral:\n{text}"
 
     @overrides()
     def zero_shot_CoT(self, text):
-        return f"""
-        You are a classifier assistant. Classify the sentiment of this sentence into 3 labels: negative, positive and neutral
-        Q: {text}. A: Let's think step by step. The answer is ?
-        """
+        return f"""Classify the sentiment of this sentence as positive, negative, or neutral.
+                Let's reason step by step.
+                {text}
+                Answer:"""
 
     @overrides()
     def zero_shot_CoT_SC(self, text, num_samples=5, max_len=50, do_print=False):
@@ -30,19 +27,25 @@ class Classification(Pattern):
         samples = self.functions.self_consistency(prompt, num_samples, max_len)
         best_answer, all_votes = self.functions.majority_vote(samples)
         if do_print:
-            print('Self-consistent answer: ', best_answer)
-            print('All votes: ', all_votes)
+            st.markdown("### Answers (Self-consistency)")
+
+            st.markdown("**All Sampled Answers:**")
+            st.code("\n".join(samples), language="text")
+
+            st.markdown("**Self-consistent Answer:**")
+            st.code(best_answer, language="text")
+
+            st.markdown("**All Votes:**")
+            st.code(str(all_votes), language="text")
         return best_answer, all_votes
 
     @overrides()
     def zero_shot_ToT(self, text):
-        return f"""
-        You are a reasoning classifier assistant. Consider multiple possibilities, classify label for each path (negative, positive, neutral)
-         and choose the most reasonable one.
-        Q: {text}
-        Think in multiple directions and explain the logic behind each possible sentiment.
-        The sentiment is (negative, positive, neutral): ?
-        """
+        return f"""Classify the sentiment of the following sentence by considering multiple possibilities (positive, negative, neutral).
+                Think in multiple directions and explain your reasoning before choosing the best label.
+                {text}
+                Final answer:"""
+
     def select_best_path(self, thoughts, text, do_print):
         prompt = f"""
         You are an expert sentiment reasoner. Based on the reasoning options below, choose the most correct label (positive, negative, or neutral) and explain your choice.
@@ -54,7 +57,9 @@ class Classification(Pattern):
         Evaluate each option. The most possible sentiment is (negative, positive, neutral)
         """
         if do_print:
-            print('Prompt', prompt)
+            st.markdown("### Prompt:")
+            st.code(prompt, language="text")
+
         input = self.tokenizer(prompt, return_tensors='pt').to('cuda')
         output = self.model.generate(
             **input,
@@ -67,9 +72,14 @@ class Classification(Pattern):
         if depth == 0:
             return [prompt]
         expanded = self.functions.expand_thoughts(prompt, n=breadth)
+
         if do_print:
-            print(f"[Depth {depth}] Expand prompt:\n{prompt}")
-            print(f"[Depth {depth}] Got thoughts:\n", expanded)
+            st.markdown(f"### Prompt at Depth {depth}")
+            st.code(prompt, language="text")
+
+            st.markdown(f"### Thoughts at Depth {depth}")
+            st.code(expanded, language="text")
+
 
         tree = []
         for thought in expanded:
@@ -78,31 +88,31 @@ class Classification(Pattern):
 
         return tree
 
-    def zero_shot_ToT_expanded(self, text, depth=2, breadth=3, do_print=False):
-        root_prompt = f"You are a classifier assistant. Analyze sentiment of and explain why clearly: {text}"
-        tree = self.recursive_expand_tree(root_prompt, depth=depth, breadth=breadth, do_print=do_print)
-        best_path = self.select_best_path(tree, text, do_print)
-        return best_path
+    # def zero_shot_ToT_expanded(self, text, depth=2, breadth=3, do_print=False):
+    #     root_prompt = (
+    #         f"You are a sentiment classifier assistant. Use multiple reasoning paths to determine the sentiment of the sentence: {text}. "
+    #         f"Consider emotional tone, polarity, and contrast. Analyze step by step, then select the most reasonable label (positive, negative, or neutral)."
+    #     )
+    #
+    #     tree = self.recursive_expand_tree(root_prompt, depth=depth, breadth=breadth, do_print=do_print)
+    #     best_path = self.select_best_path(tree, text, do_print)
+    #     return best_path
 
     @overrides()
     def few_shots_direct(self, text):
-        return f"""
-        You are a sentiment classifier assistant. Classify each sentence as positive, neutral, or negative.
-        Q: hi, A: positive
-        Q: Wrong answer B:Negative
-        Q: How can I print mouse coordinates in Rust GTK on a drawing area when clicked?, A: neutral
-        Q: {text}, A:
-        """
+        return f"""Classify the sentiment of each sentence as positive, neutral, or negative.
+                Sentence: I love this! → positive
+                Sentence: This is terrible. → negative
+                Sentence: It works as expected. → neutral
+                Sentence: {text} →"""
 
     @overrides()
     def few_shots_CoT(self, text):
-        return f"""
-        You are a sentiment classifier assistant. Classify each sentence as positive, neutral, or negative.
-        Q: hi, A: positive
-        Q: Wrong answer B:Negative
-        Q: How can I print mouse coordinates in Rust GTK on a drawing area when clicked?, A: neutral
-        Q: {text}, A:Let's think step by step. The sentiment is ?
-        """
+        return f"""Classify the sentiment of each sentence as positive, neutral, or negative. Let's explain step by step.
+                Sentence: I love this! → Reason: Strong positive words → Answer: positive
+                Sentence: This is terrible. → Reason: Strong negative tone → Answer: negative
+                Sentence: It works as expected. → Reason: Neutral tone and wording → Answer: neutral
+                Sentence: {text} → Reason:"""
 
     @overrides()
     def few_shots_CoT_SC(self, text, num_samples=5, max_len=50, do_print=False):
@@ -110,55 +120,58 @@ class Classification(Pattern):
         samples = self.functions.self_consistency(prompt, num_samples, max_len)
         best_answer, all_votes = self.functions.majority_vote(samples)
         if do_print:
-            print('Answers: ', samples)
-            print('Self-consistent answer: ', best_answer)
-            print('All votes: ', all_votes)
+            st.markdown("### 📝 Answers (Self-consistency)")
+
+            st.markdown("**All Sampled Answers:**")
+            st.code("\n".join(samples), language="text")
+
+            st.markdown("**Self-consistent Answer:**")
+            st.code(best_answer, language="text")
+
+            st.markdown("**All Votes:**")
+            st.code(str(all_votes), language="text")
         return best_answer, all_votes
 
     @overrides()
     def few_shots_ToT(self, text):
-        return f"""
-        You're a sentiment classifier assistant. Use multiple lines of reasoning before answering.
-        Example: "This movie was slow, but the ending was fantastic."
-        Option 1: Slow pacing → possibly negative.
-        Option 2: Fantastic ending → possibly positive.
-        Option 3: Mixed emotions → possibly neutral.
-        Best reasoning: Ending leaves stronger impression → Positive. 
-        Q: hi, A: positive
-        Q: Wrong answer B:Negative
-        Q: How can I print mouse coordinates in Rust GTK on a drawing area when clicked?, A: neutral
-        
-        Q: {text}
-        Option 1: Consider emotional words.
-        Option 2: Analyze tone and syntax.
-        Option 3: Look for negation or contrast.
-        Best reasoning: ...
-        Final Answer: ?
-        """
+        return f"""You are a sentiment analysis assistant. For each sentence, explain your reasoning and then classify it as **positive**, **negative**, or **neutral**.
+            
+            Example 1:
+            Sentence: "The movie was boring but had a good ending."
+            Reasoning: Boring → negative, Good ending → positive. The ending left a stronger impression → Sentiment: positive
+            
+            Example 2:
+            Sentence: "I expected more, but I guess it’s fine."
+            Reasoning: Disappointment shows unmet expectations, but “it’s fine” shows acceptance. Mixed feelings → Sentiment: neutral
+            
+            Example 3:
+            Sentence: "The product is overpriced and doesn’t work well."
+            Reasoning: Overpriced and malfunctioning product indicates frustration → Sentiment: negative
+            
+            Now analyze the following sentence:
+            Sentence: "{text}"
+            Reasoning:"""
+
+
     def few_shots_ToT_expanded(self, text, depth=2, breadth=3, do_print=False):
-            root_prompt = (f"""
-                        You're a sentiment classifier assistant. Use multiple lines of reasoning before answering.
-                        Option 1: Consider emotional words.
-                        Option 2: Analyze tone and syntax.
-                        Option 3: Look for negation or contrast.
-                        Example: "This movie was slow, but the ending was fantastic." \n
-                        Option 1: Slow pacing → possibly negative.
-                        Option 2: Fantastic ending → possibly positive.
-                        Option 3: Mixed emotions → possibly neutral.
-                        Best reasoning: Ending leaves stronger impression → Positive.
-                        Example: "The interface is a bit clunky, but overall the app works well."\n
-                        Option 1: Clunky interface → possibly negative.  
-                        Option 2: Overall functionality is good → possibly positive.  
-                        Option 3: Mixed usability and performance → possibly neutral.  
-                        Best reasoning: Despite minor flaws, the overall experience is good → Positive.
-                        Example: "I expected more from the product, but I guess it’s okay."\n
-                        Option 1: Expression of disappointment → possibly negative.  
-                        Option 2: "It’s okay" suggests acceptance → possibly neutral.  
-                        Option 3: Expectations weren’t met, but there's no strong emotion → possibly neutral.  
-                        Best reasoning: Slight disappointment balanced by acceptance → Neutral.
-                        Based on these examples, choose different options, reason and give the most possible sentiment \n
-                        Q: {text} 
-                        Best reasoning:.... -> """)
+            root_prompt = f"""You are a sentiment analysis assistant. For each sentence, explain your reasoning and then classify it as **positive**, **negative**, or **neutral**.
+            
+            Example 1:
+            Sentence: "The movie was boring but had a good ending."
+            Reasoning: Boring → negative, Good ending → positive. The ending left a stronger impression → Sentiment: positive
+            
+            Example 2:
+            Sentence: "I expected more, but I guess it’s fine."
+            Reasoning: Disappointment shows unmet expectations, but “it’s fine” shows acceptance. Mixed feelings → Sentiment: neutral
+            
+            Example 3:
+            Sentence: "The product is overpriced and doesn’t work well."
+            Reasoning: Overpriced and malfunctioning product indicates frustration → Sentiment: negative
+            
+            Now analyze the following sentence:
+            Sentence: "{text}"
+            Reasoning:"""
+
             tree = self.recursive_expand_tree(root_prompt, depth=depth, breadth=breadth, do_print=do_print)
             best_path = self.select_best_path(tree, text, do_print)
             return best_path
@@ -187,7 +200,8 @@ class Classification(Pattern):
             elif type == 'Few-shots ToT':
                 prompt = self.few_shots_ToT(text)
             if do_print:
-                print(prompt)
+                    st.markdown("### Prompt:")
+                    st.code(prompt, language="text")
             input = self.tokenizer(prompt, return_tensors='pt').to('cuda')
             output = self.functions.generate_output(type=None, input=input, max_len=300)
             return self.tokenizer.decode(output[0], skip_special_tokens=True)

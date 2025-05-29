@@ -21,8 +21,9 @@ class Reasoning(Pattern):
     def zero_shot_CoT(self, text):
         return f"""
                 You are a reasoning assistant. Break down the problem by exploring multiple lines of reasoning. 
-                Q: {text}. A: Let's think step by step. Answer the question
+                Q: {text}. A: Let's think step by step 
                 """
+
     @overrides()
     def zero_shot_CoT_SC(self, text, num_samples=5, max_len=50, do_print=False):
         prompt = self.zero_shot_CoT(text)
@@ -33,19 +34,16 @@ class Reasoning(Pattern):
             print('Self-consistent answer: ', best_answer)
             print('All votes: ', all_votes)
         return best_answer, all_votes
+
     @overrides()
     def zero_shot_ToT(self, text):
         return f"""
         You are a reasoning assistant. Break down the problem by exploring multiple lines of reasoning. Each thought should follow a different logical path.
-
         Q: {text}
-
         Thought 1: Approach the question using common sense reasoning.
         Thought 2: Consider possible assumptions and implications.
         Thought 3: Analyze the question from a cause-effect perspective.
-
         After exploring all thoughts, decide on the most reasonable final answer.
-
         A:Answer the question
         """
 
@@ -53,16 +51,12 @@ class Reasoning(Pattern):
     def few_shots_direct(self, text):
         return f"""
     You are a reasoning assistant. Read the question and give a direct but well-thought-out answer, without listing multiple thoughts.
-
     Q: A man walks into a room and sees a broken window and a baseball lying on the floor. What probably happened?
     A: Someone accidentally hit the ball through the window.
-
     Q: A woman hears the fire alarm and smells smoke coming from the kitchen. What should she do?
     A: She should quickly check the kitchen and call emergency services if there's a fire.
-
     Q: A student studied hard for an exam and felt confident after taking it. What is the likely outcome?
     A: The student probably performed well on the exam.
-    
     Q: {text}
     A:Answer the question
     """
@@ -71,7 +65,6 @@ class Reasoning(Pattern):
     def few_shots_ToT(self, text):
         return f"""
         You are a reasoning assistant. For each question, explore multiple reasoning paths (thoughts). After considering them, choose the most reasonable final answer.
-    
         Q: A student missed school for three days. On the first day, he had a headache. On the second day, he felt better but stayed home. On the third day, he went to school. Why did he return on the third day?
         Thought 1: He returned because the headache was gone.
         Thought 2: He felt better by the second day, so the third day was safe to return.
@@ -92,16 +85,13 @@ class Reasoning(Pattern):
 
     def select_best_path(self, thoughts, text, do_print):
         prompt = f"""
-                You are a reasoning expert. Given a question and several possible reasoning paths, select the best and most logically sound one.
-            
+                You are a reasoning expert. Given a question and several possible reasoning paths, select the best and most logically sound one.\n
                 Context:
                 {text}
-            
                 Reasoning Options:
-                {chr(10).join([f"{i + 1}. {t}" for i, t in enumerate(thoughts)])}
-            
-                Please reply with the number of the best reasoning option and explain briefly why it is the best.
-                A:Answer the question
+                {chr(10).join([f"{i + 1}. {t}" for i, t in enumerate(thoughts)])} 
+                Please reply with the number of the best reasoning option and explain briefly why it is the best.\n
+                A:Answer the question\n
                 """
         if do_print:
             print('Prompt:\n', prompt)
@@ -139,7 +129,6 @@ class Reasoning(Pattern):
     def few_shots_ToT_expanded(self, text, depth=2, breadth=3, do_print=False):
         root_prompt = f"""
             You are a reasoning assistant. For each question, explore multiple possible reasoning paths (called thoughts), then choose the most reasonable final answer.
-        
             Q: A student missed school for three days. On the first day, he had a headache. On the second day, he felt better but stayed home. On the third day, he went to school. Why did he return on the third day?
             Thought 1: He returned because the headache was gone.
             Thought 2: He felt better by the second day, so the third day was safe to return.
@@ -165,7 +154,24 @@ class Reasoning(Pattern):
         return best_path
     @overrides()
     def few_shots_CoT(self, text):
-        pass
+        return f"""
+                You are a reasoning assistant. Read the question and answer by thinking step by step before giving a final answer.
+                Q: A man walks into a room and sees a broken window and a baseball lying on the floor. What probably happened?
+                Let's think step by step. A window is broken and a baseball is inside the room. A baseball could break a window. It was likely hit from outside. 
+                
+                A: Someone accidentally hit the ball through the window.
+                Q: A woman hears the fire alarm and smells smoke coming from the kitchen. What should she do?
+                Let's think step by step. The fire alarm suggests a possible fire. Smoke from the kitchen reinforces that. Safety is important. 
+                
+                A: She should quickly check the kitchen and call emergency services if there's a fire.
+                Q: A student studied hard for an exam and felt confident after taking it. What is the likely outcome?
+                Let's think step by step. Studying hard usually improves performance. Confidence after the exam suggests it went well.
+                
+                A: The student probably performed well on the exam.
+                Q: {text}
+                Let's think step by step.
+                A:"""
+
     @overrides()
     def few_shots_CoT_SC(self, text, num_samples=5, max_len=50, do_print=False):
         prompt = self.few_shots_CoT(text)
@@ -176,10 +182,28 @@ class Reasoning(Pattern):
             print('Self-consistent answer: ', best_answer)
             print('All votes: ', all_votes)
         return best_answer, all_votes
-    def few_shots_CoT_ART(self, text):
-        pass
 
-    def run(self, text, do_print=False, type='Direct zero-shot', num_samples=5, max_len=50, depth=2, breadth=3):
+    def build_prompt(self, examples, query):
+        prompt = ""
+        for ex in examples:
+            prompt += f"""
+            Task: Reasoning for text
+            Input: {ex['input']}
+            Output: {ex['output']}
+            """
+            prompt += (
+                "Now solve this task:\n"
+                f"Input: {query}\n"
+                "Solution:\n"
+                "Let's solve this step-by-step. Write your reasoning clearly."
+            )
+        return prompt
+
+    def few_shots_CoT_ART(self, text, k=3):
+        examples = self.functions.find_top_k_tasks(text, k)
+        return self.build_prompt(examples, text)
+
+    def run(self, text, do_print=False, type='Direct zero-shot', num_samples=5, max_len=50, depth=2, breadth=3, k=3):
         prompt = None
         if type == 'Zero-shot CoT + Self-consistency':
             return self.zero_shot_CoT_SC(text, num_samples, max_len, do_print)
@@ -202,8 +226,10 @@ class Reasoning(Pattern):
                 prompt = self.few_shots_CoT(text)
             elif type == 'Few-shots ToT':
                 prompt = self.few_shots_ToT(text)
+            elif type == 'Few-shots CoT + ART':
+                prompt = self.few_shots_CoT_ART(text, k)
             if do_print:
                 print(prompt)
             input = self.tokenizer(prompt, return_tensors='pt').to('cuda')
-            output = self.functions.generate_output(type=None, input=input, max_len=300)
+            output = self.functions.generate_output(type='generation', input=input, max_len=300)
             return self.tokenizer.decode(output[0], skip_special_tokens=True)

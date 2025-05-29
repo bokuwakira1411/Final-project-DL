@@ -3,7 +3,7 @@ from basic_prompt_designs.Pattern import Pattern
 from basic_prompt_designs.Global_Function import Global_Function
 from sentence_transformers import SentenceTransformer, util
 
-
+import streamlit as st
 class Computation(Pattern):
     def __init__(self, tokenizer, model, comp_model, X, vectorizer, task_lib):
         self.tokenizer = tokenizer
@@ -14,14 +14,14 @@ class Computation(Pattern):
     def zero_shot_direct(self, text):
         return f"""
         You are a math assistant. Solve this question by using math formulas
-        Q: {text}. A:You need to answer follow this form: The answer is ?
+        Q: {text}. A:You need to answer follow this form and always calculate all formulas.: The answer is ?
         """
 
     @overrides()
     def zero_shot_CoT(self, text):
         return f"""
         You are a math assistant. Solve this question by using math formulas
-        Q: {text}. A: Let's think step by step. You need to answer follow this form: The answer is ?
+        Q: {text}. A: Let's think step by step. You need to answer follow this form and always calculate all formulas: The answer is ?
         """
 
     @overrides()
@@ -30,34 +30,39 @@ class Computation(Pattern):
         samples = self.functions.self_consistency(prompt, num_samples, max_len)
         best_answer, all_votes = self.functions.majority_vote(samples)
         if do_print:
-            print('Answers: ', samples)
-            print('Self-consistent answer: ', best_answer)
-            print('All votes: ', all_votes)
+            st.markdown("### 📝 Answers (Self-consistency)")
+
+            st.markdown("**All Sampled Answers:**")
+            st.code("\n".join(samples), language="text")
+
+            st.markdown("**Self-consistent Answer:**")
+            st.code(best_answer, language="text")
+
+            st.markdown("**All Votes:**")
+            st.code(str(all_votes), language="text")
         return best_answer, all_votes
 
     @overrides()
     def zero_shot_ToT(self, text):
         return f"""
         You are a math assistant. Solve this question by identifying multiple thoughts or approaches.
-        Q: {text} A: Let's try solving this from different reasoning paths. The answer is ?
+        Q: {text} A: Let's try solving this from different reasoning paths and always calculate all formulas. The answer is ?
         """
 
     def select_best_path(self, thoughts, text, do_print):
         prompt = f"""
                 You are a math expert. Given a question and several possible reasoning paths, select the best and most logically sound one.
-
                 Context:
                 {text}
-
                 Computing Options:
                 {chr(10).join([f"{i + 1}. {t}" for i, t in enumerate(thoughts)])}
-
                 Please reply with the number of the best reasoning option and explain briefly why it is the best.
+                Always calculate all formulas.
                 The final answer is:
                 """
         if do_print:
-            print('Prompt:\n', prompt)
-
+            st.markdown("### Prompt:")
+            st.code(prompt, language="text")
         input = self.tokenizer(prompt, return_tensors='pt').to('cuda')
         output = self.model.generate(
             **input,
@@ -67,44 +72,39 @@ class Computation(Pattern):
         response = self.tokenizer.decode(output[0], skip_special_tokens=True).strip()
         return response
 
-    def zero_shot_ToT_expanded(self, text, depth=2, breadth=3, do_print=False):
-        root_prompt = f"You are a math assistant. Explore different possible  Solve this question by identifying multiple thoughts or approaches and express each as a distinct reasoning path:\n\n{text}"
+    def recursive_expand_tree(self, prompt, depth, breadth, do_print=False):
+        if depth == 0:
+            return [prompt]
+        expanded = self.functions.expand_thoughts(prompt, n=breadth)
         if do_print:
-            print('Root_prompt:\n', root_prompt)
+            print(f"[Depth {depth}] Expand prompt:\n{prompt}")
+            print(f"[Depth {depth}] Got thoughts:\n", expanded)
+        tree = []
+        for thought in expanded:
+            sub_tree = self.recursive_expand_tree(thought, depth - 1, breadth, do_print)
+            tree.extend(sub_tree)
+        return tree
 
+    def zero_shot_ToT_expanded(self, text, depth=2, breadth=3, do_print=False):
+        root_prompt = self.zero_shot_ToT(text)
         thoughts = self.functions.expand_thoughts(root_prompt, n=breadth)
         if do_print:
-            print('Initial thoughts:', thoughts)
-
-        tree = []
-        for t in thoughts:
-            sub_thoughts = self.functions.expand_thoughts(t, n=breadth)
-            tree.append(sub_thoughts)
-
-        # Flatten the tree into a single list of candidate answers
-        candidates = [s for group in tree for s in group]
-        best_path = self.select_best_path(candidates, text, do_print)
-
+            st.markdown("### Thoughts:")
+            st.code(thoughts, language="text")
+        tree = self.recursive_expand_tree(root_prompt, depth=depth, breadth=breadth, do_print=do_print)
+        best_path = self.select_best_path(tree, text, do_print)
         return best_path
 
     def few_shots_ToT_expanded(self, text, depth=2, breadth=3, do_print=False):
         root_prompt = self.few_shots_ToT(text)
-
         thoughts = self.functions.expand_thoughts(root_prompt, n=breadth)
         if do_print:
             print('Root_prompt:\n', root_prompt)
             print('Thoughts:', thoughts)
-
-        tree = []
-        for t in thoughts:
-            sub_thoughts = self.functions.expand_thoughts(t, n=breadth)
-            tree.append(sub_thoughts)
-
-        # Flatten tree again
-        candidates = [s for group in tree for s in group]
-        best_path = self.select_best_path(candidates, text, do_print)
-
+        tree = self.recursive_expand_tree(root_prompt, depth=depth, breadth=breadth, do_print=do_print)
+        best_path = self.select_best_path(tree, text, do_print)
         return best_path
+
     @overrides()
     def few_shots_direct(self, text):
         return f"""
@@ -122,7 +122,7 @@ class Computation(Pattern):
         Betty's grandparents gave her $CALC(15*2)=30.
         This means, Betty needs $CALC(100-50-30-15) = 5 more.
         #### 5
-        Q: {text} A: The answer is ?
+        Q: {text} A: Always calculate all formulas. The answer is ?
         """
 
     @overrides()
@@ -142,7 +142,7 @@ class Computation(Pattern):
         Betty's grandparents gave her $CALC(15*2)=30.
         This means, Betty needs $CALC(100-50-30-15) = 5 more.
         #### 5
-        Q: {text} A: Let's think step by step. The answer is ?
+        Q: {text} A: Let's think step by step and always calculate all formulas. The answer is ?
         """
 
     @overrides()
@@ -151,9 +151,16 @@ class Computation(Pattern):
         samples = self.functions.self_consistency(prompt, num_samples, max_len)
         best_answer, all_votes = self.functions.majority_vote(samples)
         if do_print:
-            print('Answers: ', samples)
-            print('Self-consistent answer: ', best_answer)
-            print('All votes: ', all_votes)
+            st.markdown("### 📝 Answers (Self-consistency)")
+
+            st.markdown("**All Sampled Answers:**")
+            st.code("\n".join(samples), language="text")
+
+            st.markdown("**Self-consistent Answer:**")
+            st.code(best_answer, language="text")
+
+            st.markdown("**All Votes:**")
+            st.code(str(all_votes), language="text")
         return best_answer, all_votes
 
     @overrides()
@@ -189,30 +196,31 @@ class Computation(Pattern):
         Thought 1:
         Thought 2:
         Thought 3:
-        The answer is?
+        Always calculate all formulas.The answer is?
         """
 
     def build_prompt(self, examples, query):
         prompt = ""
         for ex in examples:
-            prompt += f"""Task: {ex.get('instruction')}
+            prompt += f"""
+            Task: Mathematics Inference
             Input: {ex['input']}
             Output: {ex['output']}
             """
-        prompt += (
-            "Now solve this task:\n"
-            f"Input: {query}\n"
-            "Solution:\n"
-            "Let's solve this step-by-step. Write your reasoning clearly."
-        )
+            prompt += (
+                "Now solve this task:\n"
+                f"Input: {query}\n"
+                "Solution:\n"
+                "Let's solve this step-by-step. Always calculate all formulas and write your reasoning clearly."
+            )
         return prompt
 
-    def few_shots_CoT_ART(self, text):
-        examples = self.functions.find_top_k_tasks(text, 3)
+    def few_shots_CoT_ART(self, text, k=3):
+        examples = self.functions.find_top_k_tasks(text, k)
         return self.build_prompt(examples, text)
 
 
-    def run(self, text, do_print=False, type='Direct zero-shot', num_samples=5, max_len=50, depth=2, breadth=3):
+    def run(self, text, do_print=False, type='Direct zero-shot', num_samples=5, max_len=50, depth=2, breadth=3, k=3):
         prompt = None
         if type == 'Zero-shot CoT + Self-consistency':
             return self.zero_shot_CoT_SC(text, num_samples, max_len, do_print)
@@ -235,8 +243,11 @@ class Computation(Pattern):
                 prompt = self.few_shots_CoT(text)
             elif type == 'Few-shots ToT':
                 prompt = self.few_shots_ToT(text)
+            elif type == 'Few-shots CoT + ART':
+                prompt = self.few_shots_CoT_ART(text, k)
             if do_print:
-                print(prompt)
+                st.markdown("### Prompt:")
+                st.code(prompt, language="text")
             input = self.tokenizer(prompt, return_tensors='pt').to('cuda')
             output = self.functions.generate_output(type='generation', input=input, max_len=300)
             return self.tokenizer.decode(output[0], skip_special_tokens=True)
