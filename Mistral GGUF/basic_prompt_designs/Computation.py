@@ -9,11 +9,27 @@ class Computation(Pattern):
 
     @overrides()
     def zero_shot_direct(self, text):
-        return f"Solve this question using math formulas:\n{text}"
+        return f"""You are a helpful and smart math assistant.
+            
+            Solve the following problem step-by-step using formulas, and clearly show your reasoning.
+            
+            Problem: {text}
+            
+            Let's think step by step.
+            
+            Answer:"""
 
     @overrides()
     def zero_shot_CoT(self, text):
-        return f"Solve this question step-by-step using math formulas:\n{text}"
+        return return f"""You are a helpful and smart math assistant.
+
+                    Solve the following problem step-by-step using formulas, and clearly show your reasoning.
+                    
+                    Problem: {text}
+                    
+                    Let's think step by step.
+                    
+                    Answer:"""
 
     @overrides()
     def zero_shot_CoT_SC(self, text, num_samples=5, max_len=50, do_print=False):
@@ -81,25 +97,52 @@ Give the number and explain why it is best. Always calculate all formulas.
 
     @overrides()
     def few_shots_direct(self, text):
-        return f"""Solve this math word problem directly:
-Q: The price of an item is $120, and there's a 25% discount. What is the final price?
-A: 120 - (25% of 120) = 120 - 30 = $90
+        return f"""
+You are a helpful and accurate math assistant. Whenever you see a math expression, evaluate it using the function CALC(). Always write all intermediate steps explicitly.
 
-Now solve:
-{text}
-A:"""
+Here are some examples:
+
+Q: Natalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell altogether in April and May?
+A: Natalia sold CALC(48/2) = 24 clips in May.
+Total clips = CALC(48 + 24) = 72.
+#### 72
+
+Q: Weng earns $12 an hour for babysitting. Yesterday, she just did 50 minutes of babysitting. How much did she earn?
+A: Weng earns CALC(12 / 60) = 0.2 dollars per minute.
+In 50 minutes, she earned CALC(0.2 * 50) = 10 dollars.
+#### 10
+
+Q: {text}
+A: Let's solve this step by step. Remember to use CALC() to evaluate all math.
+"""
 
     @overrides()
     def few_shots_CoT(self, text):
-        return f"""Solve this math problem step by step:
-Q: A store offers a 30% discount on a $200 item. What's the price after discount?
-Step 1: Calculate 30% of 200 = 0.3 * 200 = 60  
-Step 2: Subtract from 200 → 200 - 60 = 140  
-A: $140
+        return f"""Solve these math problems step by step:
+
+Q1: A store offers a 30% discount on a $200 item. What's the price after discount?
+Step 1: Calculate 30% of 200 = 0.3 * 200 = 60
+Step 2: Subtract from 200 → 200 - 60 = 140
+A1: $140
+
+Q2: If a car travels 60 miles in 1.5 hours, what is its average speed in miles per hour?
+Step 1: Use the formula: speed = distance / time
+Step 2: speed = 60 / 1.5 = 40
+A2: 40 miles per hour
+
+Q3: John has 3 boxes. Each box contains 12 apples. He gives away 10 apples. How many apples does he have left?
+Step 1: Total apples = 3 * 12 = 36
+Step 2: Apples left = 36 - 10 = 26
+A3: 26 apples
+
+Q4: A shirt originally costs $80. It is marked up by 25%. What's the new price?
+Step 1: Calculate markup = 25% of 80 = 0.25 * 80 = 20
+Step 2: New price = 80 + 20 = 100
+A4: $100
 
 Now solve:
 {text}
-Step-by-step reasoning:
+ Let's solve this step by step. Remember to evaluate all math.
 """
 
     @overrides()
