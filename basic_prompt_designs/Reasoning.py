@@ -14,7 +14,7 @@ class Reasoning(Pattern):
     def zero_shot_direct(self, text):
         return f"""
         You are a reasoning assistant. Break down the problem by exploring multiple lines of reasoning. 
-        Q: {text}. A:Answer the question
+        Q: {text}. A:Answer the question and explain why. Answer:... Explanation:....
         """
 
     @overrides()

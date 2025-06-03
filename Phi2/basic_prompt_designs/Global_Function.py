@@ -18,27 +18,12 @@ class Global_Function:
     def clean_label(self, text): #classification
         match = re.search(r'\b(positive|negative|neutral)\b', text.lower())
         return match.group(1) if match else 'unknown'
-
-    import re
-    import re
-
-    def extract_answer(self, text):
-        for line in text.strip().splitlines()[::-1]:
-            line_lower = line.lower()
-            if re.search(r'\b(remaining|final|total|answer|so|therefore|thus)\b', line_lower):
-                matches = re.findall(r'= *\$?(-?\d+(?:\.\d+)?)', line)
-                if matches:
-                    num = matches[-1]
-                    if float(num) > 1:
-                        return num
+    def extract_answer(self, text): #computation
         matches = re.findall(r'= *\$?(-?\d+(?:\.\d+)?)', text)
         if matches:
-            num = matches[-1]
-            if float(num) > 1:
-                return num
+            return matches[-1]
         return None
-
-    def extract_target(self, text):
+    def extract_target(self, text): #computation
         for line in text.splitlines()[::-1]:
             if line.strip().startswith("####"):
                 return line.strip().replace("####", "").strip()
@@ -76,21 +61,23 @@ class Global_Function:
         output = self.generate_output(type, input, max_len)
         return self.tokenizer.decode(output[0],skip_special_tokens=True)
 
-    def self_consistency(self, prompt, num_samples=5, max_len=50):
+    def self_consistency(self, prompt, num_samples=5, max_len=100):
         outputs = []
-        for i in range(num_samples):
-            input = self.tokenizer(prompt, return_tensors='pt').to('cuda')
+        for _ in range(num_samples):
+            inputs = self.tokenizer(prompt, return_tensors="pt").to("cuda")
+            input_len = inputs["input_ids"].shape[1]
             output = self.model.generate(
-                **input,
-                max_length = max_len,
+                **inputs,
+                max_new_tokens=max_len,
                 do_sample=True,
                 temperature=0.7,
                 top_k=50,
                 top_p=0.9,
                 num_return_sequences=1
             )
-            decoded = self.tokenizer.decode(output[0], skip_special_tokens=True)
-            outputs.append(decoded)
+            generated_ids = output[0][input_len:]
+            de = self.tokenizer.decode(generated_ids, skip_special_tokens=True).strip()
+            outputs.append(de)
         return outputs
 
     def majority_vote(self, outputs):
