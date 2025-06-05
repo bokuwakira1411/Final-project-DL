@@ -57,7 +57,8 @@ class Global_Function:
                 do_sample=True,
                 temperature=0.7,
                 top_p=0.9,
-                num_return_sequences=1
+                num_return_sequences=1,
+                eos_token_id=self.tokenizer.eos_token_id
             )
         else:
             output = self.model.generate(
@@ -65,7 +66,9 @@ class Global_Function:
                 max_length = max_len,
                 num_beams=5,
                 no_repeat_ngram_size=2,
-                early_stopping=True
+                early_stopping=True,
+                eos_token_id=self.tokenizer.eos_token_id, 
+                do_sample=False
             )
         return output
 
