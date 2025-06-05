@@ -276,7 +276,9 @@ Final Answer:
             elif type == 'Few-shots CoT + ART':
                 prompt = self.few_shots_CoT_ART(text, k)
             if do_print:
-                print(prompt)
+                    st.markdown("### Prompt:")
+                    st.code(prompt, language="text")
+
             input = self.tokenizer(prompt, return_tensors='pt', return_attention_mask=False).to('cuda')
             input_len = input['input_ids'].shape[1]
             output = self.functions.generate_output(type=None, input=input, max_len=max_len)
