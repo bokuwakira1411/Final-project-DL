@@ -12,14 +12,17 @@ class Classification(Pattern):
 
     @overrides()
     def zero_shot_direct(self, text):
-        return f"""Sentence: {text}
-                        Sentiment (neutral, positive, negative):"""
+        return f"""
+                  Instruct: Classify the sentiment (neutral, positive, negative). Don't worry about the sentence format. Sentence: {text}
+                  Output: Sentiment: (only return sentiment without code or something else)
+                  """
+
     @overrides()
     def zero_shot_CoT(self, text):
-        return f"""Sentence: "{text}"
-                    Classify the sentiment of this sentence as one of: neutral, positive, or negative.
-                    Return only the sentiment label without any explanation or additional text.
-                    Sentiment:"""
+        return f"""
+                    Instruct: Classify the sentiment of this sentence as one of: neutral, positive, or negative. Sentence: "{text}
+            
+                    Answer: Let's think step by step. Sentiment:"""
 
     @overrides()
     def zero_shot_CoT_SC(self, text, num_samples=5, max_len=50, do_print=False):
@@ -41,7 +44,7 @@ class Classification(Pattern):
 
     @overrides()
     def zero_shot_ToT(self, text):
-        return f"""Classify the sentiment of the following sentence by considering multiple possibilities (positive, negative, neutral).
+        return f"""Instruct: You are a classifier assistant. Classify the sentiment of the following sentence by considering multiple possibilities (positive, negative, neutral).
                 Think in multiple directions and explain your reasoning before choosing the best label.
                 {text}
                 Final answer:"""
@@ -100,20 +103,22 @@ class Classification(Pattern):
 
     @overrides()
     def few_shots_direct(self, text):
-        return f"""Classify the sentiment of each sentence as positive, neutral, or negative.
+        return f"""Instruct: Classify the sentiment of each sentence as positive, neutral, or negative.
                     Sentence: I love this! → positive
                     Sentence: This is terrible. → negative
                     Sentence: It works as expected. → neutral
-                    Sentence: {text} →"""
+                    Sentence: {text} 
+                   Answer: Sentiment:"""
 
     @overrides()
     def few_shots_CoT(self, text):
         return f"""
-    Classify the sentiment of each sentence as positive, neutral, or negative. Let's explain step by step.
+    Instruct: Classify the sentiment of each sentence as positive, neutral, or negative.
     Sentence: I love this! → Reason: Strong positive words → Answer: positive
     Sentence: This is terrible. → Reason: Strong negative tone → Answer: negative
     Sentence: It works as expected. → Reason: Neutral tone and wording → Answer: neutral
-    Sentence: {text} → Reason: Let's think step by step. The sentiment is """
+    Sentence: {text} 
+    Answer: Reason: Let's think step by step. Sentiment: """
 
     @overrides()
     def few_shots_CoT_SC(self, text, num_samples=5, max_len=50, do_print=False):
@@ -135,7 +140,7 @@ class Classification(Pattern):
 
     @overrides()
     def few_shots_ToT(self, text):
-        return f"""You are a sentiment analysis assistant. For each sentence, explain your reasoning and then classify it as **positive**, **negative**, or **neutral**.
+        return f"""Instruct: For each sentence, explain your reasoning and then classify it as **positive**, **negative**, or **neutral**.
             
             Example 1:
             Sentence: "The movie was boring but had a good ending."
@@ -150,8 +155,8 @@ class Classification(Pattern):
             Reasoning: Overpriced and malfunctioning product indicates frustration → Sentiment: negative
             
             Now analyze the following sentence:
-            Sentence: "{text}"
-            Reasoning:"""
+            Sentence: {text}
+            Output: Reasoning:"""
 
 
     def few_shots_ToT_expanded(self, text, depth=2, breadth=3, do_print=False):
@@ -170,7 +175,7 @@ class Classification(Pattern):
             Reasoning: Overpriced and malfunctioning product indicates frustration → Sentiment: negative
             
             Now analyze the following sentence:
-            Sentence: "{text}"
+            Sentence: {text}
             Reasoning:"""
 
             tree = self.recursive_expand_tree(root_prompt, depth=depth, breadth=breadth, do_print=do_print)
@@ -179,8 +184,10 @@ class Classification(Pattern):
 
     def run(self, text, do_print=False, type='Direct zero-shot', num_samples=5, max_len=50, depth=2, breadth=3):
         prompt = None
+        max_len = 20
         if type == 'Zero-shot CoT + Self-consistency':
             return self.zero_shot_CoT_SC(text, num_samples, max_len, do_print)
+            max_len = 50
         elif type == 'Few-shots CoT + Self-consistency':
             return self.few_shots_CoT_SC(text, num_samples, max_len, do_print)
         elif type == 'Zero-shot ToT expanded':
@@ -190,20 +197,28 @@ class Classification(Pattern):
         else:
             if type == 'Direct zero-shot':
                 prompt = self.zero_shot_direct(text)
+                max_len = 20
             elif type == 'Zero-shot CoT':
                 prompt = self.zero_shot_CoT(text)
+                max_len = 100
             elif type == 'Zero-shot ToT':
                 prompt = self.zero_shot_ToT(text)
+                max_len = 50
             elif type == 'Direct few-shots':
                 prompt = self.few_shots_direct(text)
+                max_len = 50
             elif type == 'Few-shots CoT':
                 prompt = self.few_shots_CoT(text)
+                max_len = 30
             elif type == 'Few-shots ToT':
                 prompt = self.few_shots_ToT(text)
+                max_len = 50
             if do_print:
                     st.markdown("### Prompt:")
                     st.code(prompt, language="text")
-            input = self.tokenizer(prompt, return_tensors='pt')
-            input = {k: v.to('cuda') for k, v in input.items()}
-            output = self.functions.generate_output(type=None, input=input, max_len=300)
-            return self.tokenizer.decode(output[0], skip_special_tokens=True)
+
+            input = self.tokenizer(prompt, return_tensors='pt', return_attention_mask=False).to('cuda')
+            input_len = input['input_ids'].shape[1]
+            output = self.functions.generate_output(type=None, input=input, max_len=max_len)
+            generate_out = output[0][input_len:]
+            return self.tokenizer.decode(generate_out, skip_special_tokens=True)
