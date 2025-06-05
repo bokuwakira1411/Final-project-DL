@@ -13,10 +13,6 @@ gc.collect()
 torch.cuda.empty_cache()
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
-# Load sentence embedding model
-comp_model = SentenceTransformer('all-MiniLM-L6-V2')
-
-# Cấu hình giao diện
 st.set_page_config(page_title='Flan/Mistral Prompt Playground', layout='wide')
 
 # Mapping task
@@ -57,7 +53,7 @@ if (
             torch_dtype=torch.float16,
             low_cpu_mem_usage=True,
             device_map=None
-        ).eval().to("cuda")
+        ).eval().to('cuda')
 
         st.session_state.tokenizer = tokenizer
         st.session_state.model = model
@@ -75,30 +71,10 @@ if st.button("Enter") and user_input.strip():
     tokenizer = st.session_state.tokenizer
     model = st.session_state.model
     name_task = task_map[selected_task]
-
-    # Nếu là task math, load dữ liệu và tính TF-IDF
-    tfidf_vectorizer = None
-    X = None
-    if name_task == "computation":
-        with open('/content/final_train_math.json', 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        task_samples = data[:350]
-        new_tasks = []
-        for task in task_samples:
-            task["chain_of_thought"] = task['output']
-            new_tasks.append(task)
-        texts = [task['input'] for task in new_tasks]
-        tfidf_vectorizer = TfidfVectorizer().fit(texts)
-        X = tfidf_vectorizer.transform(texts)
-
-    # Khởi tạo handler
     task_handler = Main(
         tokenizer=tokenizer,
         model=model,
-        comp_model=comp_model,
-        name_task=name_task,
-        X=X,
-        vectorizer = vectorizer  # truyền nếu có
+        name_task=name_task
     )
 
     with st.spinner("Đang xử lý..."):
