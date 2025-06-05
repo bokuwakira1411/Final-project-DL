@@ -22,20 +22,14 @@ class QA_knowledge(Pattern):
     def zero_shot_CoT_SC(self, text, num_samples=5, max_len=50, do_print=False):
         prompt = self.zero_shot_CoT(text)
         samples = self.functions.self_consistency(prompt, num_samples, max_len)
-        best_answer, all_votes = self.functions.majority_vote(samples)
         if do_print:
             st.markdown("### 📝 Answers (Self-consistency)")
 
             st.markdown("**All Sampled Answers:**")
+            st.markdown("Sample: ")
             st.code("\n".join(samples), language="text")
 
-            st.markdown("**Self-consistent Answer:**")
-            st.code(best_answer, language="text")
-
-            st.markdown("**All Votes:**")
-            st.code(str(all_votes), language="text")
-
-        return best_answer, all_votes
+        return samples
 
     @overrides()
     def few_shots_direct(self, text):
@@ -90,6 +84,7 @@ class QA_knowledge(Pattern):
         prompt = None
         if type == 'Zero-shot CoT + Self-consistency':
             self.zero_shot_CoT_SC(text, num_samples, max_len, do_print)
+            return 0
         elif type == 'Few-shots CoT + Self-consistency':
             self.few_shots_CoT_SC(text, num_samples, max_len, do_print)
         else:
@@ -97,8 +92,10 @@ class QA_knowledge(Pattern):
                 prompt = self.zero_shot_direct(text)
             elif type == 'Zero-shot CoT':
                 prompt = self.zero_shot_CoT(text)
+                max_len = 300
             elif type == 'Zero-shot CoT + Self-consistency':
                 self.zero_shot_CoT_SC(text, num_samples, max_len, do_print)
+                return 0
             elif type == 'Direct few-shots':
                 prompt = self.few_shots_direct(text)
             elif type == 'Few-shots CoT':
