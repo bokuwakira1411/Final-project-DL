@@ -17,7 +17,7 @@ class Computation(Pattern):
                 Answer:"""
     @overrides()
     def zero_shot_CoT(self, text):
-        return f"""Instruct:Solve the following problem step-by-step using formulas, and clearly show your reasoning. Problem: {text}
+        return f"""Instruct:Solve the following problem step-by-step using formulas, and clearly show your reasoning. Problem: {text}, end when you offer the final answer, do not adding some irrelevant information
                     
                     Let's think step by step.
                     
@@ -165,19 +165,20 @@ class Computation(Pattern):
     def few_shots_direct(self, text):
         return f"""
         Instruct: Solve the problem clearly. Here are some examples: 
-        Problem: Natalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell altogether in April and May?
-        Answer: Natalia sold CALC(48/2)=24 clips in May.
-        Natalia sold CALC(48+24)=72 clips altogether in April and May.
-        #### 72
-        Problem: Weng earns $12 an hour for babysitting. Yesterday, she just did 50 minutes of babysitting. How much did she earn?
-        Answer: Weng earns $CALC(12/60)=0.2 per minute.
-        Working 50 minutes, she earned $CALC(0.2*50)=10,
-        #### 10
-        Problem: Betty is saving money for a new wallet which costs $100. Betty has only half of the money she needs. Her parents decided to give her $15 for that purpose, and her grandparents twice as much as her parents. How much more money does Betty need to buy the wallet?
-        Answer: In the beginning, Betty has only $CALC(100/2) = 50.
-        Betty's grandparents gave her $CALC(15*2)=30.
-        This means, Betty needs $CALC(100-50-30-15) = 5 more.
-        #### 5
+        Problem: A store offers a 30% discount on a $200 item. What's the price after discount?
+        Step 1: Calculate 30% of 200 = 0.3 * 200 = 60
+        Step 2: Subtract from 200 → 200 - 60 = 140
+        Answer: $140
+        
+        Problem: If a car travels 60 miles in 1.5 hours, what is its average speed in miles per hour?
+        Step 1: Use the formula: speed = distance / time
+        Step 2: speed = 60 / 1.5 = 40
+        Answer: 40 miles per hour
+        
+        Problem: John has 3 boxes. Each box contains 12 apples. He gives away 10 apples. How many apples does he have left?
+        Step 1: Total apples = 3 * 12 = 36
+        Step 2: Apples left = 36 - 10 = 26
+        Answer: 26 apples
         Now solve this problem:
         Problem: {text} 
         Answer: 
@@ -295,5 +296,7 @@ class Computation(Pattern):
                 st.markdown("### Prompt:")
                 st.code(prompt, language="text")
             input = self.tokenizer(prompt, return_tensors='pt').to('cuda')
-            output = self.functions.generate_output(type='generation', input=input, max_len=300)
-            return self.tokenizer.decode(output[0], skip_special_tokens=True)
+            input_len = input['input_ids'].shape[1]
+            output = self.functions.generate_output(type=None, input=input, max_len=100)
+            generate_out = output[0][input_len:]
+            return self.tokenizer.decode(generate_out, skip_special_tokens=True)
