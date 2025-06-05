@@ -58,7 +58,6 @@ class Global_Function:
                 temperature=0.7,
                 top_p=0.9,
                 num_return_sequences=1,
-                eos_token_id=self.tokenizer.eos_token_id
             )
         else:
             output = self.model.generate(
@@ -66,9 +65,7 @@ class Global_Function:
                 max_new_tokens= max_len,
                 num_beams=5,
                 no_repeat_ngram_size=2,
-                early_stopping=True,
-                eos_token_id=self.tokenizer.eos_token_id, 
-                do_sample=False
+                early_stopping=True
             )
         return output
 
@@ -86,7 +83,7 @@ class Global_Function:
             input_len = input['input_ids'].shape[1]
             output = self.model.generate(
                 **input,
-                max_length = max_len,
+                max_new_tokens = max_len,
                 do_sample=True,
                 temperature=0.7,
                 top_k=50,
