@@ -13,20 +13,11 @@ class Computation(Pattern):
 
     @overrides()
     def zero_shot_direct(self, text):
-        return f"""You are a helpful and smart math assistant.
-
-                Solve the following problem step-by-step using formulas, and clearly show your reasoning.
-                
-                Problem: {text}
-                
+        return f"""Instruct: Solve the following problem. Problem: {text}              
                 Answer:"""
     @overrides()
     def zero_shot_CoT(self, text):
-        return f"""You are a helpful and smart math assistant.
-                    
-                    Solve the following problem step-by-step using formulas, and clearly show your reasoning.
-                    
-                    Problem: {text}
+        return f"""Instruct:Solve the following problem step-by-step using formulas, and clearly show your reasoning. Problem: {text}
                     
                     Let's think step by step.
                     
