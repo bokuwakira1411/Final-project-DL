@@ -1,19 +1,24 @@
 import streamlit as st
 from streamlit import session_state
-
 from Main import Main
-from GGUFClient import GGUFClient
 
-# Load GGUF model
-client = GGUFClient("/content/mistral.Q4_K_M.gguf")
-
-# Mapping tên task hiển thị → name_task chính xác
 task_map = {
     "classification": "classification",
     "simple qa": "qa_knowledge",
     "reasoning (social text)": "reasoning",
     "math": "computation"
 }
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch
+model = AutoModelForCausalLM.from_pretrained(
+    "microsoft/phi-2",
+    torch_dtype=torch.float16,
+    device_map="auto",  # Tự động phân bổ GPU/CPU
+    low_cpu_mem_usage=True
+).to('cuda')
+tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")
+
+tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")
 
 st.set_page_config(page_title='Flan/Mistral Prompt Playground', layout='wide')
 
@@ -30,7 +35,7 @@ with st.sidebar:
     ])
     show_prompt = st.checkbox("Hiển thị prompt ?", value=True)
 
-st.title("🤖 Chat with Mistral")
+st.title("🤖 Chat with Phi2")
 
 # Lưu lịch sử chat
 if "history" not in st.session_state:
@@ -43,7 +48,7 @@ if st.button("Enter") and user_input.strip():
     name_task = task_map[selected_task]
 
     # Tạo task handler mới theo lựa chọn
-    task_handler = Main(client, name_task=name_task)
+    task_handler = Main(tokenizer,model, name_task=name_task)
 
     with st.spinner("Đang xử lý..."):
         response = task_handler.main(
