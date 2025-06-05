@@ -24,16 +24,16 @@ class Reasoning(Pattern):
 
     @overrides()
     def zero_shot_direct(self, text):
-        return f"""Read the article and answer the question based only on the information provided. Then explain your reasoning in 1-2 short sentences.
+        return f"""Instruct: Read the article and answer the question based only on the information provided. Then explain your reasoning in 1-2 short sentences.
                 {text}
             
                 Answer:"""
 
     @overrides()
     def zero_shot_CoT(self, text):
-        return f"""Read the article and answer the question based only on the information provided. Then explain your reasoning in 1-2 short sentences.
-                   Q: {text}. A: Answer:... Let's think step by step"
-                   Answer:"""
+        return f"""Instruct: Read the article and answer the question based only on the information provided. Then explain your reasoning in 1-2 short sentences.
+                   {text}. "
+                   Answer: Let's think step by step"""
 
     @overrides()
     def zero_shot_CoT_SC(self, text, num_samples=5, max_len=50, do_print=False):
@@ -49,29 +49,30 @@ class Reasoning(Pattern):
     @overrides()
     def zero_shot_ToT(self, text):
         return f"""
-        You are a reasoning assistant. Break down the problem by exploring multiple lines of reasoning. Each thought should follow a different logical path.
-        Q: {text}
+        Instruct: Break down the problem by exploring multiple lines of reasoning. Each thought should follow a different logical path.
+        {text}
         Thought 1: Approach the question using common sense reasoning.
         Thought 2: Consider possible assumptions and implications.
         Thought 3: Analyze the question from a cause-effect perspective.
         After exploring all thoughts, decide on the most reasonable final answer.
-        A:Answer the question
+        Answer:
         """
 
     @overrides()
     def few_shots_direct(self, text):
         return f"""
-    You are a reasoning assistant. Read the question and give a direct but well-thought-out answer, without listing multiple thoughts.
-    Q: Phytochemistry is a branch of plant biochemistry primarily concerned with the chemical substances produced by plants during secondary metabolism. Some of these compounds are toxins such as the alkaloid coniine from hemlock. Others, such as the essential oils peppermint oil and lemon oil are useful for their aroma, as flavourings and spices (e.g., capsaicin), and in medicine as pharmaceuticals as in opium from opium poppies. Many medicinal and recreational drugs, such as tetrahydrocannabinol (active ingredient in cannabis), caffeine, morphine and nicotine come directly from plants. Others are simple derivatives of botanical natural products. For example, the pain killer aspirin is the acetyl ester of salicylic acid, originally isolated from the bark of willow trees, and a wide range of opiate painkillers like heroin are obtained by chemical modification of morphine obtained from the opium poppy. Popular stimulants come from plants, such as caffeine from coffee, tea and chocolate, and nicotine from tobacco. Most alcoholic beverages come from fermentation of carbohydrate-rich plant products such as barley (beer), rice (sake) and grapes (wine).\n\nNow answer this question: Where do some medicines and recreational drugs come from?    A: Someone accidentally hit the ball through the window.
+    Instruct: Read the question and give a direct but well-thought-out answer, without listing multiple thoughts. Here are some examples:
+    Question: Phytochemistry is a branch of plant biochemistry primarily concerned with the chemical substances produced by plants during secondary metabolism. Some of these compounds are toxins such as the alkaloid coniine from hemlock. Others, such as the essential oils peppermint oil and lemon oil are useful for their aroma, as flavourings and spices (e.g., capsaicin), and in medicine as pharmaceuticals as in opium from opium poppies. Many medicinal and recreational drugs, such as tetrahydrocannabinol (active ingredient in cannabis), caffeine, morphine and nicotine come directly from plants. Others are simple derivatives of botanical natural products. For example, the pain killer aspirin is the acetyl ester of salicylic acid, originally isolated from the bark of willow trees, and a wide range of opiate painkillers like heroin are obtained by chemical modification of morphine obtained from the opium poppy. Popular stimulants come from plants, such as caffeine from coffee, tea and chocolate, and nicotine from tobacco. Most alcoholic beverages come from fermentation of carbohydrate-rich plant products such as barley (beer), rice (sake) and grapes (wine).\n\nNow answer this question: Where do some medicines and recreational drugs come from?    A: Someone accidentally hit the ball through the window.
     Answer: from plants.
     Explanation: The article states that many medicinal and recreational drugs, such as tetrahydrocannabinol (active ingredient in cannabis), caffeine, morphine and nicotine come directly from plants. These are some examples of the medicines found in plants mentioned by the author. Thus it can be stated with certainty that some medicines do indeed come from plants.\n\nTherefore, \"from plants\" is the correct answer option to this question based on the context provided.
-    Q: In this task, you are provided with an article of the legal acts. Your task is to classify it into three categories (Regulation, Decision and Directive) based on its content: 1) Regulation is a binding legislative act that must be applied in its entirety on a set date across all the member states (European Union countries). 2) Decision is binding on those to whom it is addressed (e.g. an European Union country or an individual company) and is directly applicable. 3) Directive is a legislative act that sets out a goal that all  must achieve. However, it is up to the individual countries to devise their own laws on how to reach these goals.\n\nProof that the special export tax mentioned in Articles 2 and 3 of Regulation (EEC) No 1234\/71 has been paid shall be furnished to the competent authority of the importing Member State by presentation of movement certificate A.TR.1. In that case, one of the following entries shall be made in the 'Remarks' section by the competent authority:'Taxe spéciale à l exportation selon règlement (CEE) No 1234\/71 acquittée pour un montant de ...''Besondere Ausfuhrabgabe gemäss Verordnung (EWG) nr. 1234\/71 in Höhe von ... entrichtet.''Tassa speciale per l esportazione pagata, secondo regolamento (CEE) n 1234\/71, per un importo di ...''Speciale heffing bij uitvoer bedoeld in Verordening (EEG) nr 1234\/71 ten bedrage van ... voldaan'.Special export tax in accordance with Regulation (EEC) No 1234\/71 paid in the amount of ... . Commission Regulation (EEC) No 2019\/71 of 20 September 1971 is hereby repealed.This Regulation shall enter into force on the third day following its publication in the Official Journal of the European Communities.This Regulation shall be binding in its entirety and directly applicable in all Member States. 
+    Question: In this task, you are provided with an article of the legal acts. Your task is to classify it into three categories (Regulation, Decision and Directive) based on its content: 1) Regulation is a binding legislative act that must be applied in its entirety on a set date across all the member states (European Union countries). 2) Decision is binding on those to whom it is addressed (e.g. an European Union country or an individual company) and is directly applicable. 3) Directive is a legislative act that sets out a goal that all  must achieve. However, it is up to the individual countries to devise their own laws on how to reach these goals.\n\nProof that the special export tax mentioned in Articles 2 and 3 of Regulation (EEC) No 1234\/71 has been paid shall be furnished to the competent authority of the importing Member State by presentation of movement certificate A.TR.1. In that case, one of the following entries shall be made in the 'Remarks' section by the competent authority:'Taxe spéciale à l exportation selon règlement (CEE) No 1234\/71 acquittée pour un montant de ...''Besondere Ausfuhrabgabe gemäss Verordnung (EWG) nr. 1234\/71 in Höhe von ... entrichtet.''Tassa speciale per l esportazione pagata, secondo regolamento (CEE) n 1234\/71, per un importo di ...''Speciale heffing bij uitvoer bedoeld in Verordening (EEG) nr 1234\/71 ten bedrage van ... voldaan'.Special export tax in accordance with Regulation (EEC) No 1234\/71 paid in the amount of ... . Commission Regulation (EEC) No 2019\/71 of 20 September 1971 is hereby repealed.This Regulation shall enter into force on the third day following its publication in the Official Journal of the European Communities.This Regulation shall be binding in its entirety and directly applicable in all Member States. 
     Answer: Regulation
     Explanation: This act has all the features of Regulation. The act is addressed to an European Union country; it must be applied once and for all within a certain time-limit; it lays down general rules of application, which are binding on all Member States.
-    Q: What's the answer to that question: where did lee surrender to grant to end the civil war? Choices: ",
+    Question: What's the answer to that question: where did lee surrender to grant to end the civil war? Choices: ",
     Answer: Battle of Appomattox Court House
     Explanation: The Battle of Appomattox Court House was a battle in the final stages of the American Civil War, resulting in Confederate General Robert E. Lee surrendering his Army to Union Commander Ulysses S. Grant on April 9th 1865"
-    Q: {text}
+    Now solve this question
+    Question: {text}
     Answer:
     Explanation:
     """
@@ -203,22 +204,20 @@ Final Answer:
     @overrides()
     def few_shots_CoT(self, text):
         return f"""
-                You are a reasoning assistant. Read the question and answer by thinking step by step before giving a final answer.
-                Q: A man walks into a room and sees a broken window and a baseball lying on the floor. What probably happened?
-                Let's think step by step. A window is broken and a baseball is inside the room. A baseball could break a window. It was likely hit from outside. 
-                
-                A: Someone accidentally hit the ball through the window.
-                Q: A woman hears the fire alarm and smells smoke coming from the kitchen. What should she do?
-                Let's think step by step. The fire alarm suggests a possible fire. Smoke from the kitchen reinforces that. Safety is important. 
-                
-                A: She should quickly check the kitchen and call emergency services if there's a fire.
-                Q: A student studied hard for an exam and felt confident after taking it. What is the likely outcome?
-                Let's think step by step. Studying hard usually improves performance. Confidence after the exam suggests it went well.
-                
-                A: The student probably performed well on the exam.
-                Q: {text}
-                Let's think step by step.
-                A:"""
+                Instruct: Read the question and give a direct but well-thought-out answer, without listing multiple thoughts. Here are some examples:
+                Question: Phytochemistry is a branch of plant biochemistry primarily concerned with the chemical substances produced by plants during secondary metabolism. Some of these compounds are toxins such as the alkaloid coniine from hemlock. Others, such as the essential oils peppermint oil and lemon oil are useful for their aroma, as flavourings and spices (e.g., capsaicin), and in medicine as pharmaceuticals as in opium from opium poppies. Many medicinal and recreational drugs, such as tetrahydrocannabinol (active ingredient in cannabis), caffeine, morphine and nicotine come directly from plants. Others are simple derivatives of botanical natural products. For example, the pain killer aspirin is the acetyl ester of salicylic acid, originally isolated from the bark of willow trees, and a wide range of opiate painkillers like heroin are obtained by chemical modification of morphine obtained from the opium poppy. Popular stimulants come from plants, such as caffeine from coffee, tea and chocolate, and nicotine from tobacco. Most alcoholic beverages come from fermentation of carbohydrate-rich plant products such as barley (beer), rice (sake) and grapes (wine).\n\nNow answer this question: Where do some medicines and recreational drugs come from?    A: Someone accidentally hit the ball through the window.
+                Answer: from plants.
+                Explanation: The article states that many medicinal and recreational drugs, such as tetrahydrocannabinol (active ingredient in cannabis), caffeine, morphine and nicotine come directly from plants. These are some examples of the medicines found in plants mentioned by the author. Thus it can be stated with certainty that some medicines do indeed come from plants.\n\nTherefore, \"from plants\" is the correct answer option to this question based on the context provided.
+                Question: In this task, you are provided with an article of the legal acts. Your task is to classify it into three categories (Regulation, Decision and Directive) based on its content: 1) Regulation is a binding legislative act that must be applied in its entirety on a set date across all the member states (European Union countries). 2) Decision is binding on those to whom it is addressed (e.g. an European Union country or an individual company) and is directly applicable. 3) Directive is a legislative act that sets out a goal that all  must achieve. However, it is up to the individual countries to devise their own laws on how to reach these goals.\n\nProof that the special export tax mentioned in Articles 2 and 3 of Regulation (EEC) No 1234\/71 has been paid shall be furnished to the competent authority of the importing Member State by presentation of movement certificate A.TR.1. In that case, one of the following entries shall be made in the 'Remarks' section by the competent authority:'Taxe spéciale à l exportation selon règlement (CEE) No 1234\/71 acquittée pour un montant de ...''Besondere Ausfuhrabgabe gemäss Verordnung (EWG) nr. 1234\/71 in Höhe von ... entrichtet.''Tassa speciale per l esportazione pagata, secondo regolamento (CEE) n 1234\/71, per un importo di ...''Speciale heffing bij uitvoer bedoeld in Verordening (EEG) nr 1234\/71 ten bedrage van ... voldaan'.Special export tax in accordance with Regulation (EEC) No 1234\/71 paid in the amount of ... . Commission Regulation (EEC) No 2019\/71 of 20 September 1971 is hereby repealed.This Regulation shall enter into force on the third day following its publication in the Official Journal of the European Communities.This Regulation shall be binding in its entirety and directly applicable in all Member States. 
+                Answer: Regulation
+                Explanation: This act has all the features of Regulation. The act is addressed to an European Union country; it must be applied once and for all within a certain time-limit; it lays down general rules of application, which are binding on all Member States.
+                Question: What's the answer to that question: where did lee surrender to grant to end the civil war? Choices: ",
+                Answer: Battle of Appomattox Court House
+                Explanation: The Battle of Appomattox Court House was a battle in the final stages of the American Civil War, resulting in Confederate General Robert E. Lee surrendering his Army to Union Commander Ulysses S. Grant on April 9th 1865"
+                Now solve this question
+                Question: {text}
+                Answer:
+                Explanation: Let's think step by step """
 
     @overrides()
     def few_shots_CoT_SC(self, text, num_samples=5, max_len=50, do_print=False):
@@ -278,6 +277,8 @@ Final Answer:
                 prompt = self.few_shots_CoT_ART(text, k)
             if do_print:
                 print(prompt)
-            input = self.tokenizer(prompt, return_tensors='pt').to('cuda')
-            output = self.functions.generate_output(type='generation', input=input, max_len=300)
-            return self.tokenizer.decode(output[0], skip_special_tokens=True)
+            input = self.tokenizer(prompt, return_tensors='pt', return_attention_mask=False).to('cuda')
+            input_len = input['input_ids'].shape[1]
+            output = self.functions.generate_output(type=None, input=input, max_len=max_len)
+            generate_out = output[0][input_len:]
+            return self.tokenizer.decode(generate_out, skip_special_tokens=True)
