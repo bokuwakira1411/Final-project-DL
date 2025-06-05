@@ -3,7 +3,7 @@ from basic_prompt_designs.Pattern import Pattern
 from basic_prompt_designs.Global_Function import Global_Function
 from sentence_transformers import SentenceTransformer, util
 import re
-
+import streamlit as st
 
 class Reasoning(Pattern):
     def __init__(self, tokenizer, model, comp_model, X, vectorizer, task_lib):
