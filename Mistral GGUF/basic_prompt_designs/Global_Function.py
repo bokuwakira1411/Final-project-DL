@@ -80,6 +80,7 @@ class Global_Function:
         outputs = []
         for i in range(num_samples):
             input = self.tokenizer(prompt, return_tensors='pt').to('cuda')
+            input_len = input['input_ids'].shape[1]
             output = self.model.generate(
                 **input,
                 max_length = max_len,
@@ -89,7 +90,8 @@ class Global_Function:
                 top_p=0.9,
                 num_return_sequences=1
             )
-            decoded = self.tokenizer.decode(output[0], skip_special_tokens=True)
+            generate_ids = output[0][input_len:]
+            decoded = self.tokenizer.decode(generate_ids, skip_special_tokens=True)
             outputs.append(decoded)
         return outputs
 
@@ -108,14 +110,23 @@ class Global_Function:
         return [self.task_lib[i] for i in top]
 
     def expand_thoughts(self, prompt, n=3, max_len=100):
-        input = self.tokenizer(prompt, return_tensors='pt').to('cuda')
+        inputs = self.tokenizer(prompt, return_tensors='pt').to(self.model.device)
+        input_len = inputs['input_ids'].shape[1]
+    
         outputs = self.model.generate(
-            **input,
-            max_length = max_len,
+            **inputs,
+            max_length=max_len,
             num_return_sequences=n,
-            do_sample = True,
+            do_sample=True,
             top_p=0.95,
             temperature=0.7
         )
-        thoughts = [self.tokenizer.decode(output, skip_special_tokens=True).strip() for output in outputs]
+    
+        thoughts = []
+        for output in outputs:
+            # Lấy phần từ input_len trở đi
+            new_tokens = output[input_len:]
+            thought = self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
+            thoughts.append(thought)
+    
         return thoughts
