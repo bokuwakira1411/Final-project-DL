@@ -79,7 +79,9 @@ class Computation(Pattern):
 
     @overrides()
     def zero_shot_ToT(self, text):
-        return f"""You are a math assistant. For the question below, brainstorm multiple reasoning paths before concluding the answer."""
+        return f"""Instruct: You are a math assistant. For the question below, brainstorm multiple reasoning paths before concluding the answer.
+                   Problem: {text}
+                   Answer: """
 
 
     def get_best_thought(self, thoughts, text, do_print=False):
@@ -93,14 +95,13 @@ class Computation(Pattern):
             return output
     def select_best_path(self, thoughts, text, do_print):
         prompt = f"""
-                You are a math expert. Given a question and several possible reasoning paths, select the best and most logically sound one.
+                Instruct: Given a question and several possible reasoning paths, select the best and most logically sound one.
                 Context:
                 {text}
                 Computing Options:
                 {chr(10).join([f"{i + 1}. {t}" for i, t in enumerate(thoughts)])}
                 Please reply with the number of the best reasoning option and explain briefly why it is the best.
-                Always calculate all formulas.
-                The final answer is:
+                Answer:
                 """
         if do_print:
             st.markdown("### Prompt:")
@@ -163,50 +164,48 @@ class Computation(Pattern):
     @overrides()
     def few_shots_direct(self, text):
         return f"""
-        You are a math assistant. Whenever you see a math expression, call the function CALC().
-        Q: Natalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell altogether in April and May?
-        A: Natalia sold CALC(48/2)=24 clips in May.
+        Instruct: Solve the problem clearly. Here are some examples: 
+        Problem: Natalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell altogether in April and May?
+        Answer: Natalia sold CALC(48/2)=24 clips in May.
         Natalia sold CALC(48+24)=72 clips altogether in April and May.
         #### 72
-        Q: Weng earns $12 an hour for babysitting. Yesterday, she just did 50 minutes of babysitting. How much did she earn?
-        A: Weng earns $CALC(12/60)=0.2 per minute.
+        Problem: Weng earns $12 an hour for babysitting. Yesterday, she just did 50 minutes of babysitting. How much did she earn?
+        Answer: Weng earns $CALC(12/60)=0.2 per minute.
         Working 50 minutes, she earned $CALC(0.2*50)=10,
         #### 10
-        Q: Betty is saving money for a new wallet which costs $100. Betty has only half of the money she needs. Her parents decided to give her $15 for that purpose, and her grandparents twice as much as her parents. How much more money does Betty need to buy the wallet?
-        A: In the beginning, Betty has only $CALC(100/2) = 50.
+        Problem: Betty is saving money for a new wallet which costs $100. Betty has only half of the money she needs. Her parents decided to give her $15 for that purpose, and her grandparents twice as much as her parents. How much more money does Betty need to buy the wallet?
+        Answer: In the beginning, Betty has only $CALC(100/2) = 50.
         Betty's grandparents gave her $CALC(15*2)=30.
         This means, Betty needs $CALC(100-50-30-15) = 5 more.
         #### 5
-        Q: {text} A: Always calculate all formulas. The answer is ?
+        Now solve this problem:
+        Problem: {text} 
+        Answer: 
         """
 
     @overrides()
     def few_shots_CoT(self, text):
-        return f"""Solve these math problems step by step:
+        return f"""
+        Instruct: Solve the problem step by step clearly. Here are examples:
         
-        Q1: A store offers a 30% discount on a $200 item. What's the price after discount?
+        Problem: A store offers a 30% discount on a $200 item. What's the price after discount?
         Step 1: Calculate 30% of 200 = 0.3 * 200 = 60
         Step 2: Subtract from 200 → 200 - 60 = 140
-        A1: $140
+        Answer: $140
         
-        Q2: If a car travels 60 miles in 1.5 hours, what is its average speed in miles per hour?
+        Problem: If a car travels 60 miles in 1.5 hours, what is its average speed in miles per hour?
         Step 1: Use the formula: speed = distance / time
         Step 2: speed = 60 / 1.5 = 40
-        A2: 40 miles per hour
+        Answer: 40 miles per hour
         
-        Q3: John has 3 boxes. Each box contains 12 apples. He gives away 10 apples. How many apples does he have left?
+        Problem: John has 3 boxes. Each box contains 12 apples. He gives away 10 apples. How many apples does he have left?
         Step 1: Total apples = 3 * 12 = 36
         Step 2: Apples left = 36 - 10 = 26
-        A3: 26 apples
-        
-        Q4: A shirt originally costs $80. It is marked up by 25%. What's the new price?
-        Step 1: Calculate markup = 25% of 80 = 0.25 * 80 = 20
-        Step 2: New price = 80 + 20 = 100
-        A4: $100
+        Answer: 26 apples
 
-        Now solve:
-        {text}
-         Let's solve this step by step. Remember to evaluate all math. """
+        Now solve this problem:
+        Problem: {text}
+        Answer: """
 
     @overrides()
     def few_shots_CoT_SC(self, text, num_samples=5, max_len=50, do_print=False):
@@ -214,7 +213,7 @@ class Computation(Pattern):
         samples = self.functions.self_consistency(prompt, num_samples, max_len)
         best_answer, all_votes = self.functions.majority_vote(samples)
         if do_print:
-            st.markdown("### 📝 Answers (Self-consistency)")
+            st.markdown("### Answers (Self-consistency)")
 
             st.markdown("**All Sampled Answers:**")
             st.code("\n".join(samples), language="text")
@@ -229,36 +228,36 @@ class Computation(Pattern):
     @overrides()
     def few_shots_ToT(self, text):
         return f"""
-        You are a math assistant.\n
-         Use a tree-of-thought approach to break down complex problems by exploring different solution paths, then converge on the correct answer.
+        Instruct: Use a tree-of-thought approach to break down complex problems by exploring different solution paths and reasoning step by step, then converge on the correct answer. See the example below:
 
-        Q: Natalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell altogether in April and May?
-        A:
-        Thought 1: Natalia sold 48 clips in April.
-        Thought 2: She sold half as many in May → CALC(48/2)=24 clips.
-        Thought 3: Total clips = CALC(48+24)=72.
+        Problem: Natalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell altogether in April and May?  
+        Answer:  
+        Thought 1: Natalia sold 48 clips in April.  
+        Thought 2: She sold half as many in May → CALC(48 / 2) = 24 clips.  
+        Thought 3: Total clips sold = CALC(48 + 24) = 72.  
+        The final answer is 72.
 
-        Q: {text}
-        A:
-        Let's think in steps, exploring each possibility:
-        Thought 1:
-        Thought 2:
-        Thought 3:
-        """
+        Now try the following:  
+        Problem: {text}  
+        Answer:  
+        Let's think step by step, exploring each thought:  
+        Thought 1:  
+        Thought 2:  
+        Thought 3: """
 
     def build_prompt(self, examples, query):
         prompt = ""
         for ex in examples:
             prompt += f"""
-            Task: Mathematics Inference
-            Input: {ex['input']}
-            Output: {ex['output']}
+            Instruct: Solve the problem
+            Problem: {ex['input']}
+            Answer: {ex['output']}
             """
             prompt += (
                 "Now solve this task:\n"
-                f"Input: {query}\n"
-                "Solution:\n"
-                "Let's solve this step-by-step. Always calculate all formulas and write your reasoning clearly."
+                f"Problem: {query}\n"
+                "Answer:\n"
+                "Let's solve this step-by-step. Write your reasoning clearly."
             )
         return prompt
 
