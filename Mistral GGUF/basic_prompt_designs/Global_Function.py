@@ -91,7 +91,8 @@ class Global_Function:
                 temperature=0.7,
                 top_k=50,
                 top_p=0.9,
-                num_return_sequences=1
+                num_return_sequences=1,
+                eos_token_id=self.tokenizer.eos_token_id
             )
             generate_ids = output[0][input_len:]
             decoded = self.tokenizer.decode(generate_ids, skip_special_tokens=True)
@@ -122,7 +123,8 @@ class Global_Function:
             num_return_sequences=n,
             do_sample=True,
             top_p=0.95,
-            temperature=0.7
+            temperature=0.7,
+            eos_token_id=self.tokenizer.eos_token_id
         )
     
         thoughts = []
