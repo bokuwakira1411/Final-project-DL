@@ -1,6 +1,14 @@
 import streamlit as st
 from streamlit import session_state
 from Main import Main
+import gc
+import os
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch
+gc.collect()
+torch.cuda.empty_cache()
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+
 
 task_map = {
     "classification": "classification",
@@ -8,17 +16,16 @@ task_map = {
     "reasoning (social text)": "reasoning",
     "math": "computation"
 }
-from transformers import AutoTokenizer, AutoModelForCausalLM
-import torch
-model = AutoModelForCausalLM.from_pretrained(
-    "microsoft/phi-2",
-    torch_dtype=torch.float16,
-    device_map="auto",  # Tự động phân bổ GPU/CPU
-    low_cpu_mem_usage=True
-).to('cuda')
-tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")
 
-tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")
+if "tokenizer" not in st.session_state:
+    model_id = "microsoft/phi-2"
+    st.session_state.tokenizer = AutoTokenizer.from_pretrained(model_id)
+    st.session_state.model = AutoModelForCausalLM.from_pretrained(
+        model_id,
+        torch_dtype=torch.float16,
+        low_cpu_mem_usage=True,
+        device_map="auto"
+    ).eval().to("cuda")
 
 st.set_page_config(page_title='Flan/Mistral Prompt Playground', layout='wide')
 
@@ -60,7 +67,8 @@ if st.button("Enter") and user_input.strip():
     st.session_state.history.append({"role": "user", "content": user_input})
     st.session_state.history.append({"role": "assistant", "content": response})
 
-# Hiển thị lịch sử trò chuyện
-for msg in st.session_state.history:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+if st.session_state.history:
+    last_msg = st.session_state.history[-1]
+    with st.chat_message(last_msg["role"]):
+        st.markdown(last_msg["content"])
+
