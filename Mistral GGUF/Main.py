@@ -1,4 +1,4 @@
-from basic_prompt_designs.Classfication import Classification
+from basic_prompt_designs.Classification import Classification
 from basic_prompt_designs.Computation import Computation
 from basic_prompt_designs.QA_knowledge import QA_knowledge
 from basic_prompt_designs.Reasoning import Reasoning
