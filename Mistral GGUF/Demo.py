@@ -2,14 +2,21 @@ import streamlit as st
 import gc
 import os
 import torch
+import json
 from transformers import AutoTokenizer, AutoModelForCausalLM
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sentence_transformers import SentenceTransformer, util
 from Main import Main
 
+# Xử lý bộ nhớ
 gc.collect()
 torch.cuda.empty_cache()
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
-# Cấu hình page
+# Load sentence embedding model
+comp_model = SentenceTransformer('all-MiniLM-L6-V2')
+
+# Cấu hình giao diện
 st.set_page_config(page_title='Flan/Mistral Prompt Playground', layout='wide')
 
 # Mapping task
@@ -36,7 +43,7 @@ with st.sidebar:
 
 st.title("🤖 Chat with Phi2")
 
-# Load mô hình nếu chưa có hoặc khi task thay đổi
+# Load mô hình nếu chưa có hoặc task thay đổi
 if (
     "model" not in st.session_state
     or "tokenizer" not in st.session_state
@@ -49,14 +56,14 @@ if (
             model_id,
             torch_dtype=torch.float16,
             low_cpu_mem_usage=True,
-            device_map="auto"
+            device_map=None
         ).eval().to("cuda")
 
         st.session_state.tokenizer = tokenizer
         st.session_state.model = model
         st.session_state.last_task = selected_task
 
-# Lưu lịch sử chat
+# Lưu lịch sử
 if "history" not in st.session_state:
     st.session_state["history"] = []
 
@@ -69,7 +76,30 @@ if st.button("Enter") and user_input.strip():
     model = st.session_state.model
     name_task = task_map[selected_task]
 
-    task_handler = Main(tokenizer, model, name_task=name_task)
+    # Nếu là task math, load dữ liệu và tính TF-IDF
+    tfidf_vectorizer = None
+    X = None
+    if name_task == "computation":
+        with open('/content/final_train_math.json', 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        task_samples = data[:350]
+        new_tasks = []
+        for task in task_samples:
+            task["chain_of_thought"] = task['output']
+            new_tasks.append(task)
+        texts = [task['input'] for task in new_tasks]
+        tfidf_vectorizer = TfidfVectorizer().fit(texts)
+        X = tfidf_vectorizer.transform(texts)
+
+    # Khởi tạo handler
+    task_handler = Main(
+        tokenizer=tokenizer,
+        model=model,
+        comp_model=comp_model,
+        name_task=name_task,
+        X=X,
+        vectorizer = vectorizer  # truyền nếu có
+    )
 
     with st.spinner("Đang xử lý..."):
         response = task_handler.main(
@@ -83,6 +113,6 @@ if st.button("Enter") and user_input.strip():
 
 # Hiển thị tin nhắn gần nhất
 if st.session_state.history:
-    for msg in st.session_state.history[-2:]:  # user + assistant gần nhất
+    for msg in st.session_state.history[-2:]:  # chỉ hiển thị 1 vòng tương tác
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
