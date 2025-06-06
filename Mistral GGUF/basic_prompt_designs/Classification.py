@@ -14,7 +14,7 @@ class Classification(Pattern):
     def zero_shot_direct(self, text):
         return f"""
                   Instruct: Classify the sentiment (neutral, positive, negative). Don't worry about the sentence format. Sentence: {text}
-                  Output: Sentiment: (only return sentiment without code or something else)
+                  Output: Sentiment: 
                   """
 
     @overrides()
@@ -103,12 +103,12 @@ class Classification(Pattern):
 
     @overrides()
     def few_shots_direct(self, text):
-        return f"""Instruct: Classify the sentiment of each sentence as positive, neutral, or negative.
+        return f"""Instruction: Classify the sentiment of each sentence as positive, neutral, or negative
                     Sentence: I love this! → positive
                     Sentence: This is terrible. → negative
                     Sentence: It works as expected. → neutral
                     Sentence: {text} 
-                   Answer: Sentiment:"""
+                   Output: (only return 1 sentiment)"""
 
     @overrides()
     def few_shots_CoT(self, text):
@@ -118,7 +118,7 @@ class Classification(Pattern):
     Sentence: This is terrible. → Reason: Strong negative tone → Answer: negative
     Sentence: It works as expected. → Reason: Neutral tone and wording → Answer: neutral
     Sentence: {text} 
-    Answer: Reason: Let's think step by step. Sentiment: """
+    Output: Reason: Let's think step by step. Sentiment: Final answer: """
 
     @overrides()
     def few_shots_CoT_SC(self, text, num_samples=5, max_len=50, do_print=False):
@@ -156,7 +156,7 @@ class Classification(Pattern):
             
             Now analyze the following sentence:
             Sentence: {text}
-            Output: Reasoning:"""
+            Output: Reasoning: Final answer:"""
 
 
     def few_shots_ToT_expanded(self, text, depth=2, breadth=3, do_print=False):
@@ -209,7 +209,7 @@ class Classification(Pattern):
                 max_len = 50
             elif type == 'Few-shots CoT':
                 prompt = self.few_shots_CoT(text)
-                max_len = 30
+                max_len = 100
             elif type == 'Few-shots ToT':
                 prompt = self.few_shots_ToT(text)
                 max_len = 50
