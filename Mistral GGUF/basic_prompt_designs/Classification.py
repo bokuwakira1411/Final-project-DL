@@ -13,8 +13,8 @@ class Classification(Pattern):
     @overrides()
     def zero_shot_direct(self, text):
         return f"""
-                  Instruct: Classify the sentiment (neutral, positive, negative). Don't worry about the sentence format. Sentence: {text}
-                  Output: Sentiment: 
+                  Instruction: Classify the sentiment (neutral, positive, negative). Don't worry about the sentence format. Sentence: {text}
+                  Output: (only return 1 sentiment) 
                   """
 
     @overrides()
@@ -22,7 +22,8 @@ class Classification(Pattern):
         return f"""
                     Instruct: Classify the sentiment of this sentence as one of: neutral, positive, or negative. Sentence: "{text}
             
-                    Answer: Let's think step by step. Sentiment:"""
+                    Answer: Let's think step by step. The final answer:"""
+
 
     @overrides()
     def zero_shot_CoT_SC(self, text, num_samples=5, max_len=50, do_print=False):
