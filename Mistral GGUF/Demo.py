@@ -48,11 +48,11 @@ if (
     with st.spinner("🔄 Đang tải lại mô hình..."):
         model_id = "microsoft/phi-2"
         tokenizer = AutoTokenizer.from_pretrained(model_id)
+                
         model = AutoModelForCausalLM.from_pretrained(
-            model_id,
-            torch_dtype=torch.float16,
-            low_cpu_mem_usage=True,
-            device_map=None
+            "microsoft/phi-2",
+            torch_dtype=torch.float16,  
+            low_cpu_mem_usage=True
         ).eval().to('cuda')
 
         st.session_state.tokenizer = tokenizer
