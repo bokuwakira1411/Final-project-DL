@@ -20,32 +20,23 @@ class Classification(Pattern):
     @overrides()
     def zero_shot_CoT(self, text):
         return f"""
-                    Instruct: Classify the sentiment of this sentence as one of: neutral, positive, or negative. Sentence: "{text}
+                    Instruction: Classify the sentiment of this sentence as one of: neutral, positive, or negative. Sentence: {text}
             
-                    Answer: Let's think step by step. The final answer:"""
+                    Answer: Let's think step by step. The final answer: (sentiment)"""
 
 
     @overrides()
     def zero_shot_CoT_SC(self, text, num_samples=5, max_len=50, do_print=False):
         prompt = self.zero_shot_CoT(text)
-        samples = self.functions.self_consistency(prompt, num_samples, max_len)
-        best_answer, all_votes = self.functions.majority_vote(samples)
         if do_print:
-            st.markdown("### Answers (Self-consistency)")
+          st.code(prompt, language='text')
+        samples = self.functions.self_consistency(prompt, num_samples, max_len)
 
-            st.markdown("**All Sampled Answers:**")
-            st.code("\n".join(samples), language="text")
-
-            st.markdown("**Self-consistent Answer:**")
-            st.code(best_answer, language="text")
-
-            st.markdown("**All Votes:**")
-            st.code(str(all_votes), language="text")
-        return best_answer, all_votes
+        return samples
 
     @overrides()
     def zero_shot_ToT(self, text):
-        return f"""Instruct: You are a classifier assistant. Classify the sentiment of the following sentence by considering multiple possibilities (positive, negative, neutral).
+        return f"""Instruction: You are a classifier assistant. Classify the sentiment of the following sentence by considering multiple possibilities (positive, negative, neutral).
                 Think in multiple directions and explain your reasoning before choosing the best label.
                 {text}
                 Final answer:"""
@@ -67,7 +58,7 @@ class Classification(Pattern):
         input = self.tokenizer(prompt, return_tensors='pt').to('cuda')
         output = self.model.generate(
             **input,
-            max_length = 200,
+            max_new_tokens = 200,
             do_sample=False
         )
         return self.tokenizer.decode(output[0], skip_special_tokens=True).strip()
@@ -119,25 +110,15 @@ class Classification(Pattern):
     Sentence: This is terrible. → Reason: Strong negative tone → Answer: negative
     Sentence: It works as expected. → Reason: Neutral tone and wording → Answer: neutral
     Sentence: {text} 
-    Output: Reason: Let's think step by step. Sentiment: Final answer: """
+    Output: Reason: Let's think step by step -> Sentiment: Final answer: """
 
     @overrides()
     def few_shots_CoT_SC(self, text, num_samples=5, max_len=50, do_print=False):
         prompt = self.few_shots_CoT(text)
         samples = self.functions.self_consistency(prompt, num_samples, max_len)
-        best_answer, all_votes = self.functions.majority_vote(samples)
         if do_print:
-            st.markdown("### 📝 Answers (Self-consistency)")
-
-            st.markdown("**All Sampled Answers:**")
-            st.code("\n".join(samples), language="text")
-
-            st.markdown("**Self-consistent Answer:**")
-            st.code(best_answer, language="text")
-
-            st.markdown("**All Votes:**")
-            st.code(str(all_votes), language="text")
-        return best_answer, all_votes
+          st.code(prompt, language='text')
+        return samples
 
     @overrides()
     def few_shots_ToT(self, text):
@@ -187,9 +168,11 @@ class Classification(Pattern):
         prompt = None
         max_len = 20
         if type == 'Zero-shot CoT + Self-consistency':
+            max_len = 120
             return self.zero_shot_CoT_SC(text, num_samples, max_len, do_print)
-            max_len = 50
+            
         elif type == 'Few-shots CoT + Self-consistency':
+            max_len = 120
             return self.few_shots_CoT_SC(text, num_samples, max_len, do_print)
         elif type == 'Zero-shot ToT expanded':
             return self.zero_shot_ToT_expanded(text, depth, breadth, do_print)
@@ -201,7 +184,7 @@ class Classification(Pattern):
                 max_len = 20
             elif type == 'Zero-shot CoT':
                 prompt = self.zero_shot_CoT(text)
-                max_len = 100
+                max_len = 200
             elif type == 'Zero-shot ToT':
                 prompt = self.zero_shot_ToT(text)
                 max_len = 50
@@ -213,7 +196,7 @@ class Classification(Pattern):
                 max_len = 100
             elif type == 'Few-shots ToT':
                 prompt = self.few_shots_ToT(text)
-                max_len = 50
+                max_len = 200
             if do_print:
                     st.markdown("### Prompt:")
                     st.code(prompt, language="text")
