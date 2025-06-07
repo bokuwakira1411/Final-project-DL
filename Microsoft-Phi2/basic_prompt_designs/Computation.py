@@ -61,21 +61,11 @@ class Computation(Pattern):
 
     @overrides()
     def zero_shot_CoT_SC(self, text, num_samples=5, max_len=200, do_print=False):
-        prompt = self.few_shots_CoT(text)
+        prompt = self.zero_shot_CoT(text)
         samples = self.functions.self_consistency(prompt, num_samples, max_len)
-        best_answer, all_votes = self.functions.majority_vote(samples)
         if do_print:
-            st.markdown("### 📝 Answers (Self-consistency)")
-
-            st.markdown("**All Sampled Answers:**")
-            st.code("\n".join(samples), language="text")
-
-            st.markdown("**Self-consistent Answer:**")
-            st.code(best_answer, language="text")
-
-            st.markdown("**All Votes:**")
-            st.code(str(all_votes), language="text")
-        return best_answer, all_votes
+          st.code(prompt, language='text')
+        return samples
 
     @overrides()
     def zero_shot_ToT(self, text):
@@ -212,19 +202,9 @@ class Computation(Pattern):
     def few_shots_CoT_SC(self, text, num_samples=5, max_len=50, do_print=False):
         prompt = self.few_shots_CoT(text)
         samples = self.functions.self_consistency(prompt, num_samples, max_len)
-        best_answer, all_votes = self.functions.majority_vote(samples)
         if do_print:
-            st.markdown("### Answers (Self-consistency)")
-
-            st.markdown("**All Sampled Answers:**")
-            st.code("\n".join(samples), language="text")
-
-            st.markdown("**Self-consistent Answer:**")
-            st.code(best_answer, language="text")
-
-            st.markdown("**All Votes:**")
-            st.code(str(all_votes), language="text")
-        return best_answer, all_votes
+            st.code(prompt, language='text')
+        return samples
 
     @overrides()
     def few_shots_ToT(self, text):
@@ -270,8 +250,10 @@ class Computation(Pattern):
     def run(self, text, do_print=False, type='Direct zero-shot', num_samples=5, max_len=50, depth=2, breadth=3, k=3):
         prompt = None
         if type == 'Zero-shot CoT + Self-consistency':
+            max_len = 200
             return self.zero_shot_CoT_SC(text, num_samples, max_len, do_print)
         elif type == 'Few-shots CoT + Self-consistency':
+            max_len = 200
             return self.few_shots_CoT_SC(text, num_samples, max_len, do_print)
         elif type == 'Zero-shot ToT expanded':
             return self.zero_shot_ToT_expanded(text, depth, breadth, do_print)
