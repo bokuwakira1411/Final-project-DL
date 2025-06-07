@@ -8,4 +8,4 @@ Mô tả tóm tắt: Thiết kế prompt và chạy thử nghiệm, so sánh tr�
   - **Data** : dữ liệu cho 5 tasks hỏi đáp, phân loại, tính toán, suy luận, khác
   - **run_Demo**: file chạy chính trên google colab
   - **Final_Project_DL.pdf**: file tổng hợp kết quả chạy
-![Mô tả ảnh](images/demo.png)
+![Mô tả ảnh](images/Screenshot 2025-06-06 204910.png)
