@@ -13,11 +13,11 @@ class Computation(Pattern):
 
     @overrides()
     def zero_shot_direct(self, text):
-        return f"""Instruct: Solve the following problem. Problem: {text}              
+        return f"""Instruction: Solve the following problem. Problem: {text}              
                 Answer:"""
     @overrides()
     def zero_shot_CoT(self, text):
-        return f"""Instruct:Solve the following problem step-by-step using formulas, and clearly show your reasoning. Problem: {text}, end when you offer the final answer, do not adding some irrelevant information
+        return f"""Instruction:Solve the following problem step-by-step using formulas, and clearly show your reasoning. Problem: {text}, end when you offer the final answer, do not adding some irrelevant information
                     
                     Let's think step by step.
                     
@@ -69,7 +69,7 @@ class Computation(Pattern):
 
     @overrides()
     def zero_shot_ToT(self, text):
-        return f"""Instruct: You are a math assistant. For the question below, brainstorm multiple reasoning paths before concluding the answer.
+        return f"""Instruction: You are a math assistant. For the question below, brainstorm multiple reasoning paths before concluding the answer.
                    Problem: {text}
                    Answer: """
 
@@ -85,7 +85,7 @@ class Computation(Pattern):
             return output
     def select_best_path(self, thoughts, text, do_print):
         prompt = f"""
-                Instruct: Given a question and several possible reasoning paths, select the best and most logically sound one.
+                Instruction: Given a question and several possible reasoning paths, select the best and most logically sound one.
                 Context:
                 {text}
                 Computing Options:
@@ -154,7 +154,7 @@ class Computation(Pattern):
     @overrides()
     def few_shots_direct(self, text):
         return f"""
-        Instruct: Solve the problem clearly. Here are some examples: 
+        Instruction: Solve the problem clearly. Here are some examples: 
         Problem: A store offers a 30% discount on a $200 item. What's the price after discount?
         Step 1: Calculate 30% of 200 = 0.3 * 200 = 60
         Step 2: Subtract from 200 → 200 - 60 = 140
@@ -177,7 +177,7 @@ class Computation(Pattern):
     @overrides()
     def few_shots_CoT(self, text):
         return f"""
-        Instruct: Solve the problem step by step clearly. Here are examples:
+        Instruction: Solve the problem step by step clearly. Here are examples:
         
         Problem: A store offers a 30% discount on a $200 item. What's the price after discount?
         Step 1: Calculate 30% of 200 = 0.3 * 200 = 60
@@ -209,7 +209,7 @@ class Computation(Pattern):
     @overrides()
     def few_shots_ToT(self, text):
         return f"""
-        Instruct: Use a tree-of-thought approach to break down complex problems by exploring different solution paths and reasoning step by step, then converge on the correct answer. See the example below:
+        Instruction: Use a tree-of-thought approach to break down complex problems by exploring different solution paths and reasoning step by step, then converge on the correct answer. See the example below:
 
         Problem: Natalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell altogether in April and May?  
         Answer:  
