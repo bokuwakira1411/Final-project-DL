@@ -13,25 +13,24 @@ class Reasoning(Pattern):
 
     def get_best_thought(self, thoughts, text, do_print=False):
         output = self.select_best_path(thoughts, text, do_print=do_print)
-        if 0 < len(output) < 3:
-            match = re.search(r"\b(\d+)\b", output)
-            if match:
+        match = re.search(r"\b(\d+)\b", output)
+        if match:
                 index = int(match.group(1)) - 1
                 if 0 <= index < len(thoughts):
                     return thoughts[index]
         else:
-            return output
+                return output
 
     @overrides()
     def zero_shot_direct(self, text):
-        return f"""Instruct: Read the article and answer the question based only on the information provided. Then explain your reasoning in 1-2 short sentences.
+        return f"""Instruction: Read the article and answer the question based only on the information provided. Then explain your reasoning in 1-2 short sentences.
                 {text}
             
                 Answer:"""
 
     @overrides()
     def zero_shot_CoT(self, text):
-        return f"""Instruct: Read the article and answer the question based only on the information provided. Then explain your reasoning in 1-2 short sentences.
+        return f"""Instruction: Read the article and answer the question based only on the information provided. Then explain your reasoning in 1-2 short sentences.
                    {text}. "
                    Answer: Let's think step by step"""
 
@@ -46,19 +45,19 @@ class Reasoning(Pattern):
     @overrides()
     def zero_shot_ToT(self, text):
         return f"""
-        Instruct: Break down the problem by exploring multiple lines of reasoning. Each thought should follow a different logical path.
+        Instruction: Break down the problem by exploring multiple lines of reasoning. Each thought should follow a different logical path.
         {text}
         Thought 1: Approach the question using common sense reasoning.
         Thought 2: Consider possible assumptions and implications.
         Thought 3: Analyze the question from a cause-effect perspective.
         After exploring all thoughts, decide on the most reasonable final answer.
-        Answer:
+        Final Answer:
         """
 
     @overrides()
     def few_shots_direct(self, text):
         return f"""
-    Instruct: Read the question and give a direct but well-thought-out answer, without listing multiple thoughts. Here are some examples:
+    Instruction: Read the question and give a direct but well-thought-out answer, without listing multiple thoughts. Here are some examples:
     Question: Phytochemistry is a branch of plant biochemistry primarily concerned with the chemical substances produced by plants during secondary metabolism. Some of these compounds are toxins such as the alkaloid coniine from hemlock. Others, such as the essential oils peppermint oil and lemon oil are useful for their aroma, as flavourings and spices (e.g., capsaicin), and in medicine as pharmaceuticals as in opium from opium poppies. Many medicinal and recreational drugs, such as tetrahydrocannabinol (active ingredient in cannabis), caffeine, morphine and nicotine come directly from plants. Others are simple derivatives of botanical natural products. For example, the pain killer aspirin is the acetyl ester of salicylic acid, originally isolated from the bark of willow trees, and a wide range of opiate painkillers like heroin are obtained by chemical modification of morphine obtained from the opium poppy. Popular stimulants come from plants, such as caffeine from coffee, tea and chocolate, and nicotine from tobacco. Most alcoholic beverages come from fermentation of carbohydrate-rich plant products such as barley (beer), rice (sake) and grapes (wine).\n\nNow answer this question: Where do some medicines and recreational drugs come from?    A: Someone accidentally hit the ball through the window.
     Answer: from plants.
     Explanation: The article states that many medicinal and recreational drugs, such as tetrahydrocannabinol (active ingredient in cannabis), caffeine, morphine and nicotine come directly from plants. These are some examples of the medicines found in plants mentioned by the author. Thus it can be stated with certainty that some medicines do indeed come from plants.\n\nTherefore, \"from plants\" is the correct answer option to this question based on the context provided.
@@ -120,88 +119,20 @@ Metals are thermal conductors — they rapidly transfer heat from our warm skin 
 Final Answer: Because metals conduct heat away from the skin faster
 
 ---
-
+Now solving this:
 Q: {text}
-Thought 1 (Common sense reasoning):
+Thought 1 (Common sense reasoning):  
 Thought 2 (Assumptions and implications):
-Thought 3 (Cause-effect analysis):
+Thought 3 (Cause-effect analysis): 
 
-Final Answer:
+Final Answer: 
 """
 
-    def select_best_path(self, thoughts, text, do_print=False):
-        prompt = f"""You are a reasoning expert. Given a question and several reasoning paths, choose the most logical one.
 
-        Question: {text}
-
-        Candidates:
-        {chr(10).join([f"{i + 1}. {t}" for i, t in enumerate(thoughts)])}
-
-        Reply with the best option, justify briefly. Final answer is ?"""
-        if do_print:
-            print('prompt:\n', prompt)
-        print(thoughts)
-        input = self.tokenizer(prompt, return_tensors='pt').to('cuda')
-        input_len = input['input_ids'].shape[1]
-        output = self.functions.generate_output(type=None, input=input)[0]
-        generate_ids = output[0][input_len:]
-        answer = self.tokenizer.decode(generate_ids, skip_special_tokens=True).strip()
-        return answer
-
-    def expand_thoughts(self, prompt, n=3):
-        inputs = self.tokenizer(prompt, return_tensors='pt').to('cuda')
-        outputs = [self.model.generate(**inputs, max_length=150) for _ in range(n)]
-        return [self.tokenizer.decode(o[0], skip_special_tokens=True) for o in outputs]
-
-    def recursive_expand_tree(self, prompt, depth, breadth, context, do_print=False):
-        if depth == 0:
-            return [prompt]
-
-        base_prompt = f"""
-            You are a reasoning assistant. Use tree-of-thought reasoning to explore solutions.
-
-            Question: {context}
-
-            Partial Reasoning:
-            {prompt}
-            Now expand with next steps:
-            """
-
-        expanded = self.expand_thoughts(base_prompt, n=breadth)
-        expanded = list(set(expanded))
-        if do_print:
-            print(f"[Depth {depth}] Base prompt:\n{base_prompt}")
-            print(f"[Depth {depth}] Got thoughts:\n", expanded)
-
-        tree = []
-        for thought in expanded:
-            sub_tree = self.recursive_expand_tree(thought, depth - 1, breadth, context, do_print)
-            tree.extend(sub_tree)
-        return tree
-
-    def zero_shot_ToT_expanded(self, text, depth=2, breadth=3, do_print=False):
-        root_prompt = self.zero_shot_ToT(text)
-        if do_print:
-            print('Root_prompt', root_prompt)
-        tree = self.recursive_expand_tree(root_prompt, depth, breadth, text, do_print)
-        best = self.get_best_thought(tree, text, do_print)
-        return best
-
-    def few_shots_ToT_expanded(self, text, depth=2, breadth=3, do_print=False):
-        root_prompt = self.few_shots_ToT(text)
-        if do_print:
-            print('Root_prompt', root_prompt)
-        tree = []
-        for _ in range(breadth):
-            single_tree = self.recursive_expand_tree(root_prompt, depth, breadth, text, do_print)
-            tree.extend(single_tree)
-
-        best_path = self.get_best_thought(tree, text, do_print)
-        return best_path
     @overrides()
     def few_shots_CoT(self, text):
         return f"""
-                Instruct: Read the question and give a direct but well-thought-out answer, without listing multiple thoughts. Here are some examples:
+                Instruction: Read the question and give a direct but well-thought-out answer, without listing multiple thoughts. Here are some examples:
                 Question: Phytochemistry is a branch of plant biochemistry primarily concerned with the chemical substances produced by plants during secondary metabolism. Some of these compounds are toxins such as the alkaloid coniine from hemlock. Others, such as the essential oils peppermint oil and lemon oil are useful for their aroma, as flavourings and spices (e.g., capsaicin), and in medicine as pharmaceuticals as in opium from opium poppies. Many medicinal and recreational drugs, such as tetrahydrocannabinol (active ingredient in cannabis), caffeine, morphine and nicotine come directly from plants. Others are simple derivatives of botanical natural products. For example, the pain killer aspirin is the acetyl ester of salicylic acid, originally isolated from the bark of willow trees, and a wide range of opiate painkillers like heroin are obtained by chemical modification of morphine obtained from the opium poppy. Popular stimulants come from plants, such as caffeine from coffee, tea and chocolate, and nicotine from tobacco. Most alcoholic beverages come from fermentation of carbohydrate-rich plant products such as barley (beer), rice (sake) and grapes (wine).\n\nNow answer this question: Where do some medicines and recreational drugs come from?    A: Someone accidentally hit the ball through the window.
                 Answer: from plants.
                 Explanation: The article states that many medicinal and recreational drugs, such as tetrahydrocannabinol (active ingredient in cannabis), caffeine, morphine and nicotine come directly from plants. These are some examples of the medicines found in plants mentioned by the author. Thus it can be stated with certainty that some medicines do indeed come from plants.\n\nTherefore, \"from plants\" is the correct answer option to this question based on the context provided.
@@ -243,8 +174,92 @@ Final Answer:
     def few_shots_CoT_ART(self, text, k=3):
         examples = self.functions.find_top_k_tasks(text, k)
         return self.build_prompt(examples, text)
+    
+    def expand_thoughts(self, prompt, n=3):
+      inputs = self.tokenizer(prompt, return_tensors='pt').to('cuda')
+      input_len = inputs["input_ids"].shape[1]
 
-    def run(self, text, do_print=False, type='Direct zero-shot', num_samples=5, max_len=200, depth=1, breadth=3, k=3):
+      outputs = [self.model.generate(
+          **inputs,
+          max_new_tokens=200,
+          do_sample=True,
+          temperature=0.7,
+          top_k=50,
+          top_p=0.95,
+          pad_token_id=self.tokenizer.eos_token_id
+      ) for _ in range(n)]
+
+      return [
+          self.tokenizer.decode(output[0][input_len:], skip_special_tokens=True).strip()
+          for output in outputs
+      ]
+    def recursive_expand_tree(self, prompt, depth, breadth, context, do_print=False, node_counter=[0], max_nodes=30):
+                if depth == 0 or node_counter[0] >= max_nodes:
+                    return [prompt]
+
+                base_prompt = f"""Instruction: Use tree-of-thought reasoning to explore solutions.
+
+                    Question: {context}
+
+                    Partial Reasoning:
+                    {prompt}
+                    Now expand with next steps:"""
+
+                expanded = self.expand_thoughts(base_prompt, n=breadth)
+                expanded = list(set(expanded))
+
+                if do_print:
+                    print(f"[Depth {depth}] Base prompt:\n{base_prompt}")
+                    print(f"[Depth {depth}] Got thoughts:\n", expanded)
+
+                tree = []
+                for thought in expanded:
+                    if node_counter[0] >= max_nodes:
+                        break
+                    node_counter[0] += 1
+                    sub_tree = self.recursive_expand_tree(thought, depth - 1, breadth, context, do_print, node_counter, max_nodes)
+                    tree.extend(sub_tree)
+                return tree
+
+    def select_best_path(self, thoughts, text, do_print=False):
+        prompt = f"""Instruction: Given a question and several reasoning paths, choose the most logical one.
+
+        Question: {text}
+
+        Candidates:
+        {chr(10).join([f"{i + 1}. {t}" for i, t in enumerate(thoughts)])}
+
+        Reply with the best option (one candidate, select thought number), justify briefly. 
+        Answer:"""
+        if do_print:
+                print('prompt:\n', prompt)
+        print(thoughts)
+        input = self.tokenizer(prompt, return_tensors='pt').to('cuda')
+        input_len = input['input_ids'].shape[1]
+        output = self.functions.generate_output(type=None, input = input, max_len = 100)
+        generate_ids = output[0][input_len:]
+        answer = self.tokenizer.decode(generate_ids, skip_special_tokens=True).strip()
+        return answer
+
+    def zero_shot_ToT_expanded(self, text, depth=2, breadth=2, do_print=False):
+        root_prompt = self.zero_shot_ToT(text)
+        if do_print:
+                print('Root_prompt:\n', root_prompt)
+        tree = self.recursive_expand_tree(root_prompt, depth=depth, breadth=breadth, context=text, do_print=do_print, max_nodes=30)
+        best = self.get_best_thought(tree, text, do_print)
+        return best
+
+    def few_shots_ToT_expanded(self, text, depth=2, breadth=3, do_print=False):
+        root_prompt = self.few_shots_ToT(text)
+        if do_print:
+            print('[Root prompt]')
+            print(root_prompt)
+
+        tree = self.recursive_expand_tree(root_prompt, depth=depth, breadth=breadth, context=text, do_print=do_print, max_nodes=30)
+        best_path = self.get_best_thought(tree, text, do_print)
+        return best_path
+
+    def run(self, text, do_print=False, type='Direct zero-shot', num_samples=5, max_len=200, depth=2, breadth=2, k=3):
         prompt = None
         if type == 'Zero-shot CoT + Self-consistency':
             return self.zero_shot_CoT_SC(text, num_samples, max_len, do_print)
