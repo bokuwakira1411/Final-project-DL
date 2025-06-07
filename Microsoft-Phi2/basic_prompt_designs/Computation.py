@@ -104,7 +104,7 @@ class Computation(Pattern):
                 if depth == 0 or node_counter[0] >= max_nodes:
                     return [prompt]
 
-                base_prompt = f"""Instruction: Use tree-of-thought mathematic reasoning to explore solutions.
+                base_prompt = f"""Instruction: Use tree-of-thought mathematics reasoning to explore solutions.
 
                     Question: {context}
 
@@ -129,7 +129,7 @@ class Computation(Pattern):
                 return tree
 
     def select_best_path(self, thoughts, text, do_print=False):
-        prompt = f"""Instruction: You are a math assistant. Given a question and several mathematicreasoning paths, choose the most logical one.
+        prompt = f"""Instruction: You are a math assistant. Given a question and several mathematics reasoning paths, choose the most logical one.
 
         Question: {text}
 

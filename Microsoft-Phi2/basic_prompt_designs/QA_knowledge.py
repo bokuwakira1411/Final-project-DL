@@ -10,12 +10,12 @@ class QA_knowledge(Pattern):
         self.functions = Global_Function(tokenizer, model, comp_model, X, vectorizer, task_lib)
     @overrides()
     def zero_shot_direct(self, text):
-        return f"""Instruct: Answer clearly, exactly the following :\n{text}. You can use reliable sources to answer such as google, wikipedia,....\n
+        return f"""Instruction: Answer clearly, exactly the following :\n{text}. You can use reliable sources to answer such as google, wikipedia,....\n
                  Answer: """
 
     @overrides()
     def zero_shot_CoT(self, text):
-        return f"""Instruct:  {text}\n
+        return f"""Instruction:  {text}\n
                    Answer: Let's break it down and then answer clearly, exactly the following."""
 
     @overrides()
@@ -23,18 +23,14 @@ class QA_knowledge(Pattern):
         prompt = self.zero_shot_CoT(text)
         samples = self.functions.self_consistency(prompt, num_samples, max_len)
         if do_print:
-            st.markdown("### 📝 Answers (Self-consistency)")
-
-            st.markdown("**All Sampled Answers:**")
-            st.markdown("Sample: ")
-            st.code("\n".join(samples), language="text")
+            st.code(prompt, language='text')
 
         return samples
 
     @overrides()
     def few_shots_direct(self, text):
         return f"""
-            Instruct: Answer the following question, using reliable sources such as wikipedia,...Here are some examples:
+            Instruction: Answer the following question, using reliable sources such as wikipedia,...Here are some examples:
             Question:between 1900 and 1920 where did most of the migrants to the united states come from,
             Answer: During the period between 1900 and 1920, most migrants to the United States came from Europe, particularly from Italy, Poland, and Russia. There were also significant numbers of immigrants from Canada, Mexico, and other parts of Latin America. In addition, there were smaller numbers of immigrants from Asia and other parts of the world.
 
@@ -50,7 +46,7 @@ class QA_knowledge(Pattern):
                 """
     @overrides()
     def few_shots_CoT(self, text):
-        return f"""Instruct: Answer the question using reliable information. Think step by step.
+        return f"""Instruction: Answer the question using reliable information. Think step by step.
 
                 Question:between 1900 and 1920 where did most of the migrants to the united states come from,
                 Answer: During the period between 1900 and 1920, most migrants to the United States came from Europe, particularly from Italy, Poland, and Russia. There were also significant numbers of immigrants from Canada, Mexico, and other parts of Latin America. In addition, there were smaller numbers of immigrants from Asia and other parts of the world.
@@ -70,9 +66,7 @@ class QA_knowledge(Pattern):
         prompt = self.few_shots_CoT(text)
         samples = self.functions.self_consistency(prompt, num_samples, max_len)
         if do_print:
-            st.markdown("### 📝 Answers (Self-consistency)")
-            st.markdown("**All Votes:**")
-            st.code(samples, language="text")
+            st.code(prompt, language='text')
         return samples
     @overrides()
     def few_shots_ToT(self, text):
