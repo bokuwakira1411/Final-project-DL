@@ -39,12 +39,9 @@ class Reasoning(Pattern):
     def zero_shot_CoT_SC(self, text, num_samples=5, max_len=50, do_print=False):
         prompt = self.zero_shot_CoT(text)
         samples = self.functions.self_consistency(prompt, num_samples, max_len)
-        best_answer, all_votes = self.functions.majority_vote(samples)
         if do_print:
-            print('Answers: ', samples)
-            print('Self-consistent answer: ', best_answer)
-            print('All votes: ', all_votes)
-        return best_answer, all_votes
+          st.code(prompt, language='text')
+        return samples
 
     @overrides()
     def zero_shot_ToT(self, text):
@@ -223,12 +220,9 @@ Final Answer:
     def few_shots_CoT_SC(self, text, num_samples=5, max_len=50, do_print=False):
         prompt = self.few_shots_CoT(text)
         samples = self.functions.self_consistency(prompt, num_samples, max_len)
-        best_answer, all_votes = self.functions.majority_vote(samples)
         if do_print:
-            print('Answers: ', samples)
-            print('Self-consistent answer: ', best_answer)
-            print('All votes: ', all_votes)
-        return best_answer, all_votes
+            st.code(prompt, language='text')
+        return samples
 
     def build_prompt(self, examples, query):
         prompt = ""
@@ -250,7 +244,7 @@ Final Answer:
         examples = self.functions.find_top_k_tasks(text, k)
         return self.build_prompt(examples, text)
 
-    def run(self, text, do_print=False, type='Direct zero-shot', num_samples=5, max_len=50, depth=2, breadth=3, k=3):
+    def run(self, text, do_print=False, type='Direct zero-shot', num_samples=5, max_len=200, depth=1, breadth=3, k=3):
         prompt = None
         if type == 'Zero-shot CoT + Self-consistency':
             return self.zero_shot_CoT_SC(text, num_samples, max_len, do_print)
