@@ -19,9 +19,8 @@ class Computation(Pattern):
     def zero_shot_CoT(self, text):
         return f"""Instruction:Solve the following problem step-by-step using formulas, and clearly show your reasoning. Problem: {text}, end when you offer the final answer, do not adding some irrelevant information
                     
-                    Let's think step by step.
                     
-                    Answer:"""
+                    Final answer: Let's think step by step."""
 
     def self_consistency(self, prompt, num_samples=5, max_len=150):
         outputs = []
@@ -83,71 +82,87 @@ class Computation(Pattern):
                 return thoughts[index]
         else:
             return output
-    def select_best_path(self, thoughts, text, do_print):
-        prompt = f"""
-                Instruction: Given a question and several possible reasoning paths, select the best and most logically sound one.
-                Context:
-                {text}
-                Computing Options:
-                {chr(10).join([f"{i + 1}. {t}" for i, t in enumerate(thoughts)])}
-                Please reply with the number of the best reasoning option and explain briefly why it is the best.
-                Answer:
-                """
-        if do_print:
-            st.markdown("### Prompt:")
-            st.code(prompt, language="text")
-
-        inputs = self.tokenizer(prompt, return_tensors='pt').to('cuda')
-        input_len = inputs["input_ids"].shape[1]
-
-        output = self.model.generate(
-            **inputs,
-            max_new_tokens=300,
-            early_stopping=True,
-            pad_token_id=self.tokenizer.eos_token_id
-        )
-
-        return self.tokenizer.decode(output[0][input_len:], skip_special_tokens=True).strip()
-
-    def recursive_expand_tree(self, prompt, depth, breadth, do_print=False):
-        if depth == 0:
-            return [prompt]
-        expanded = self.functions.expand_thoughts(prompt, n=breadth)
-        if do_print:
-            print(f"[Depth {depth}] Expand prompt:\n{prompt}")
-            print(f"[Depth {depth}] Got thoughts:\n", expanded)
-        tree = []
-        for thought in expanded:
-            sub_tree = self.recursive_expand_tree(thought, depth - 1, breadth, do_print)
-            tree.extend(sub_tree)
-        return tree
-
     def expand_thoughts(self, prompt, n=3):
-        inputs = self.tokenizer(prompt, return_tensors='pt').to('cuda')
-        outputs = [self.model.generate(**inputs, max_length=150) for _ in range(n)]
-        return [self.tokenizer.decode(o[0], skip_special_tokens=True) for o in outputs]
+      inputs = self.tokenizer(prompt, return_tensors='pt').to('cuda')
+      input_len = inputs["input_ids"].shape[1]
 
-    def zero_shot_ToT_expanded(self, text, depth=2, breadth=3, do_print=False):
-        root_prompt = self.zero_shot_ToT(text)
-        thoughts = self.functions.expand_thoughts(root_prompt, n=breadth)
+      outputs = [self.model.generate(
+          **inputs,
+          max_new_tokens=200,
+          do_sample=True,
+          temperature=0.7,
+          top_k=50,
+          top_p=0.95,
+          pad_token_id=self.tokenizer.eos_token_id
+      ) for _ in range(n)]
+
+      return [
+          self.tokenizer.decode(output[0][input_len:], skip_special_tokens=True).strip()
+          for output in outputs
+      ]
+    def recursive_expand_tree(self, prompt, depth, breadth, context, do_print=False, node_counter=[0], max_nodes=30):
+                if depth == 0 or node_counter[0] >= max_nodes:
+                    return [prompt]
+
+                base_prompt = f"""Instruction: Use tree-of-thought mathematic reasoning to explore solutions.
+
+                    Question: {context}
+
+                    Partial Reasoning:
+                    {prompt}
+                    Now expand with next steps:"""
+
+                expanded = self.expand_thoughts(base_prompt, n=breadth)
+                expanded = list(set(expanded))
+
+                if do_print:
+                    print(f"[Depth {depth}] Base prompt:\n{base_prompt}")
+                    print(f"[Depth {depth}] Got thoughts:\n", expanded)
+
+                tree = []
+                for thought in expanded:
+                    if node_counter[0] >= max_nodes:
+                        break
+                    node_counter[0] += 1
+                    sub_tree = self.recursive_expand_tree(thought, depth - 1, breadth, context, do_print, node_counter, max_nodes)
+                    tree.extend(sub_tree)
+                return tree
+
+    def select_best_path(self, thoughts, text, do_print=False):
+        prompt = f"""Instruction: You are a math assistant. Given a question and several mathematicreasoning paths, choose the most logical one.
+
+        Question: {text}
+
+        Candidates:
+        {chr(10).join([f"{i + 1}. {t}" for i, t in enumerate(thoughts)])}
+
+        Reply with the best option (one candidate, select thought number) 
+        Answer: Explain:"""
         if do_print:
-            st.markdown("### Thoughts:")
-            st.code(thoughts, language="text")
-        tree = self.recursive_expand_tree(root_prompt, depth, breadth, text, do_print)
+                print('prompt:\n', prompt)
+        print(thoughts)
+        input = self.tokenizer(prompt, return_tensors='pt').to('cuda')
+        input_len = input['input_ids'].shape[1]
+        output = self.functions.generate_output(type=None, input = input, max_len = 200)
+        generate_ids = output[0][input_len:]
+        answer = self.tokenizer.decode(generate_ids, skip_special_tokens=True).strip()
+        return answer
+
+    def zero_shot_ToT_expanded(self, text, depth=2, breadth=2, do_print=False):
+        root_prompt = self.zero_shot_ToT(text)
+        if do_print:
+                print('Root_prompt:\n', root_prompt)
+        tree = self.recursive_expand_tree(root_prompt, depth=depth, breadth=breadth, context=text, do_print=do_print, max_nodes=30)
         best = self.get_best_thought(tree, text, do_print)
         return best
 
     def few_shots_ToT_expanded(self, text, depth=2, breadth=3, do_print=False):
         root_prompt = self.few_shots_ToT(text)
-        thoughts = self.functions.expand_thoughts(root_prompt, n=breadth)
         if do_print:
-            print('Root_prompt:\n', root_prompt)
-            print('Thoughts:', thoughts)
-        tree = []
-        for _ in range(breadth):
-            single_tree = self.recursive_expand_tree(root_prompt, depth, breadth, text, do_print)
-            tree.extend(single_tree)
+            print('[Root prompt]')
+            print(root_prompt)
 
+        tree = self.recursive_expand_tree(root_prompt, depth=depth, breadth=breadth, context=text, do_print=do_print, max_nodes=30)
         best_path = self.get_best_thought(tree, text, do_print)
         return best_path
 
@@ -171,7 +186,7 @@ class Computation(Pattern):
         Answer: 26 apples
         Now solve this problem:
         Problem: {text} 
-        Answer: 
+        Final Answer: 
         """
 
     @overrides()
@@ -196,7 +211,8 @@ class Computation(Pattern):
 
         Now solve this problem:
         Problem: {text}
-        Answer: """
+        Let's think step by step
+        Answer:  """
 
     @overrides()
     def few_shots_CoT_SC(self, text, num_samples=5, max_len=50, do_print=False):
@@ -220,17 +236,17 @@ class Computation(Pattern):
 
         Now try the following:  
         Problem: {text}  
-        Answer:  
         Let's think step by step, exploring each thought:  
         Thought 1:  
         Thought 2:  
-        Thought 3: """
+        Thought 3: 
+        Answer:  """
 
     def build_prompt(self, examples, query):
         prompt = ""
         for ex in examples:
             prompt += f"""
-            Instruct: Solve the problem
+            Instruction: Solve the mathematic problem
             Problem: {ex['input']}
             Answer: {ex['output']}
             """
@@ -247,7 +263,7 @@ class Computation(Pattern):
         return self.build_prompt(examples, text)
 
 
-    def run(self, text, do_print=False, type='Direct zero-shot', num_samples=5, max_len=50, depth=2, breadth=3, k=3):
+    def run(self, text, do_print=False, type='Direct zero-shot', num_samples=5, max_len=500, depth=2, breadth=3, k=3):
         prompt = None
         if type == 'Zero-shot CoT + Self-consistency':
             max_len = 200
@@ -263,6 +279,7 @@ class Computation(Pattern):
             if type == 'Direct zero-shot':
                 prompt = self.zero_shot_direct(text)
             elif type == 'Zero-shot CoT':
+                max_len =200
                 prompt = self.zero_shot_CoT(text)
             elif type == 'Zero-shot ToT':
                 prompt = self.zero_shot_ToT(text)
@@ -279,6 +296,6 @@ class Computation(Pattern):
                 st.code(prompt, language="text")
             input = self.tokenizer(prompt, return_tensors='pt').to('cuda')
             input_len = input['input_ids'].shape[1]
-            output = self.functions.generate_output(type=None, input=input, max_len=100)
+            output = self.functions.generate_output(type=None, input=input, max_len=max_len)
             generate_out = output[0][input_len:]
             return self.tokenizer.decode(generate_out, skip_special_tokens=True)
