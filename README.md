@@ -7,7 +7,8 @@ Mô tả tóm tắt: Thiết kế prompt và chạy thử nghiệm, so sánh tr�
   - **Microsoft-Phi2/experiments**: chạy thử nghiệm trên Microsoft-Phi2
   - **Data** : dữ liệu cho 5 tasks hỏi đáp, phân loại, tính toán, suy luận, khác
   - **run_Demo**: file chạy chính trên google colab
-  - **Final_Project_DL.pdf**: file tổng hợp kết quả chạy 
+  - **Final_Project_DL.pdf**: file tổng hợp kết quả chạy
+  - **General.py**: file chạy các bài toán khác, phải tự viết prompt trên giao diện
 <p align="center">
   <img src="images/Screenshot 2025-06-06 204910.png" alt="Giao diện" width="600"/>
 </p>
