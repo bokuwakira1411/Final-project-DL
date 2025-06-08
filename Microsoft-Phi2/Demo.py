@@ -17,7 +17,8 @@ task_map = {
     "classification": "classification",
     "simple qa": "qa_knowledge",
     "reasoning (social text)": "reasoning",
-    "math": "computation"
+    "math": "computation",
+    "general": "general"
 }
 
 with st.sidebar:
